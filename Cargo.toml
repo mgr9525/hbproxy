@@ -14,5 +14,9 @@ async-std = "1.9.0"
 futures = "0.3.16"
 flexi_logger = "0.18"
 log = "0.4"
-hbtp={git="https://github.com/mgr9525/hbtp-rust-async.git", rev="1e4bd891ddea436218fbe7e9c1e1ba7751bdc42f"}
-ruisutil={git="https://github.com/mgr9525/rust-ruisutil.git", rev="2dfd958851c634ea59e020cedf49aba640efb270"}
+
+# hbtp={git="https://github.com/mgr9525/hbtp-rust-async.git", rev="1e4bd891ddea436218fbe7e9c1e1ba7751bdc42f"}
+# ruisutil={git="https://github.com/mgr9525/rust-ruisutil.git", rev="2dfd958851c634ea59e020cedf49aba640efb270"}
+
+hbtp={path="/home/mgr/programs/rust/hbtp-rust-async"}
+ruisutil={path="/home/mgr/programs/rust/rust-ruisutil"}

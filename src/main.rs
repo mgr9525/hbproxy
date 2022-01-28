@@ -10,6 +10,7 @@ extern crate once_cell;
 extern crate ruisutil;
 
 mod app;
+// mod case;
 
 use clap::{App, Arg, SubCommand};
 
@@ -126,9 +127,25 @@ async fn cmds() -> i32 {
       }
       0
   } else if let Some(v) = Application::get().cmdargs.subcommand_matches("run") {
-      // runs(v).await
-      0
+      runs(v).await
   } else {
       -2
   }
+}
+async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+  // case::ServerCase::new(ruisutil::Context::);
+  let addrs = if let Some(vs) = args.value_of("bind") {
+      vs
+  } else {
+      "0.0.0.0:6543"
+  };
+  let serv = hbtp::Engine::new(Some(Application::context()), addrs);
+  // serv.reg_fun(1, handle_room);
+  log::info!("server start on:{}", addrs);
+  if let Err(e) = serv.run().await {
+      log::error!("server run err:{}", e);
+      return 1;
+  }
+  log::debug!("run end!");
+  0
 }

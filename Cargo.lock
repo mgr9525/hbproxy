@@ -428,7 +428,6 @@ dependencies = [
 [[package]]
 name = "hbtp"
 version = "0.1.0"
-source = "git+https://github.com/mgr9525/hbtp-rust-async.git?rev=1e4bd891ddea436218fbe7e9c1e1ba7751bdc42f#1e4bd891ddea436218fbe7e9c1e1ba7751bdc42f"
 dependencies = [
  "async-std",
  "futures",
@@ -625,7 +624,6 @@ checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 [[package]]
 name = "ruisutil"
 version = "0.1.0"
-source = "git+https://github.com/mgr9525/rust-ruisutil.git?rev=2dfd958851c634ea59e020cedf49aba640efb270#2dfd958851c634ea59e020cedf49aba640efb270"
 dependencies = [
  "async-std",
 ]
