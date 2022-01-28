@@ -8,7 +8,7 @@ pub struct Application {
     pub workpath: String,
     pub cmdargs: clap::ArgMatches<'static>,
 
-    // pub roomsrv: Option<crate::videos::RoomServ>,
+    pub server_case: Option<crate::case::ServerCase>,
 }
 impl Application {
     pub fn init(workpath: String, args: clap::ArgMatches<'static>) -> bool {
@@ -18,7 +18,7 @@ impl Application {
             workpath: workpath,
             cmdargs: args,
 
-            // roomsrv: None,
+            server_case: None,
         };
         unsafe {
             match APPONE.set(app) {
