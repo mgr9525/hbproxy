@@ -88,6 +88,13 @@ fn main() {
                         .help("join server address.(def:hbproxy.server:6573)"),
                 )
                 .arg(
+                  Arg::with_name("name")
+                      .short("n")
+                      .long("name")
+                      .value_name("NAME")
+                      .help("node name"),
+              )
+                .arg(
                     Arg::with_name("key")
                         .short("k")
                         .long("key")
