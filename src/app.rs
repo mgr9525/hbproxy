@@ -2,6 +2,7 @@ use once_cell::sync::OnceCell;
 
 static mut APPONE: OnceCell<Application> = OnceCell::new();
 
+pub const VERSION:&str="1.0.0";
 pub struct Application {
     ctx: ruisutil::Context,
     pub id: String,
