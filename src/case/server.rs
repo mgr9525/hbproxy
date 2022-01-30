@@ -63,16 +63,7 @@ impl ServerCase {
         }
         match self.inner.node.reg_check(&data) {
             0 => {}
-            1 => {
-                log::debug!("replace node:{}", data.name.as_str());
-                /* let rt = c.res_string(hbtp::ResCodeOk, "ok").await;
-                if let Ok(lkv) = self.inner.nodes.read() {
-                    if let Some(v) = lkv.get(&name) {
-                        v.set_conn(c.own_conn());
-                    }
-                }
-                return rt; */
-            }
+            1 => log::debug!("replace node:{}", data.name.as_str()),
             3 => return c.res_string(hbtp::ResCodeErr, "lock err").await,
             _ => return c.res_string(utils::HbtpTokenErr, "token err").await, //已存在同名node
         };
