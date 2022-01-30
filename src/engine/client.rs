@@ -15,7 +15,7 @@ pub struct NodeClientCfg {
 }
 #[derive(Clone)]
 pub struct NodeClient {
-    inner: ruisutil::ArcMutBox<Inner>,
+    inner: ruisutil::ArcMut<Inner>,
 }
 
 struct Inner {
@@ -30,7 +30,7 @@ struct Inner {
 impl NodeClient {
     pub fn new(ctx: ruisutil::Context, conn: TcpStream, cfg: NodeClientCfg) -> Self {
         Self {
-            inner: ruisutil::ArcMutBox::new(Inner {
+            inner: ruisutil::ArcMut::new(Inner {
                 ctx: ctx,
                 cfg: cfg,
                 conn: Some(conn),
@@ -81,7 +81,7 @@ impl NodeClient {
     }
     async fn reconn(&self) {
         let mut req = hbtp::Request::new(self.inner.cfg.addr.as_str(), 1);
-        req.command("reg_node");
+        req.command("RegNode");
         if let Some(vs) = &self.inner.cfg.key {
             req.add_arg("node_key", vs.as_str());
         }

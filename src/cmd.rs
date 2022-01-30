@@ -61,7 +61,7 @@ async fn handle1(c: hbtp::Context) -> io::Result<()> {
     };
     match c.command() {
         "version" => c.res_string(hbtp::ResCodeOk, app::VERSION).await,
-        "reg_node" => cs.reg_node(c).await,
+        "RegNode" => cs.node_reg(c).await,
         // "regdev2room" => route::regdev2room(c).await,
         // "roomplay" => route::roomplay(c).await,
         _ => Err(ruisutil::ioerr("Not found Method", None)),
@@ -95,7 +95,7 @@ async fn nodes<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     };
 
     let mut req = hbtp::Request::new(addrs, 1);
-    req.command("reg_node");
+    req.command("RegNode");
     if let Some(vs) = args.value_of("key") {
         req.add_arg("node_key", vs);
         cfg.key = Some(vs.into());

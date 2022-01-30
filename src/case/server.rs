@@ -13,7 +13,7 @@ pub struct ServerConf {
 }
 #[derive(Clone)]
 pub struct ServerCase {
-    inner: ruisutil::ArcMutBox<Inner>,
+    inner: ruisutil::ArcMut<Inner>,
 }
 struct Inner {
     ctx: ruisutil::Context,
@@ -24,7 +24,7 @@ struct Inner {
 impl ServerCase {
     pub fn new(ctx: ruisutil::Context, conf: ServerConf) -> Self {
         Self {
-            inner: ruisutil::ArcMutBox::new(Inner {
+            inner: ruisutil::ArcMut::new(Inner {
                 ctx: ctx,
                 conf: conf,
                 nodes: RwLock::new(HashMap::new()),
@@ -44,7 +44,7 @@ impl ServerCase {
         false
     }
 
-    pub async fn reg_node(&self, c: hbtp::Context) -> io::Result<()> {
+    pub async fn node_reg(&self, c: hbtp::Context) -> io::Result<()> {
         if !self.authed(&c) {
             return c.res_string(hbtp::ResCodeAuth, "auth failed").await;
         }

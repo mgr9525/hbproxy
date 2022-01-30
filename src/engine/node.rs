@@ -10,7 +10,7 @@ pub struct NodeEngineCfg {
 }
 #[derive(Clone)]
 pub struct NodeEngine {
-    inner: ruisutil::ArcMutBox<Inner>,
+    inner: ruisutil::ArcMut<Inner>,
 }
 
 struct Inner {
@@ -24,7 +24,7 @@ struct Inner {
 impl<'a> NodeEngine {
     pub fn new(ctx: ruisutil::Context, case: ServerCase, cfg: NodeEngineCfg) -> Self {
         Self {
-            inner: ruisutil::ArcMutBox::new(Inner {
+            inner: ruisutil::ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
                 case: case,
                 cfg: cfg,
