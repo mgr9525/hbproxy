@@ -124,7 +124,20 @@ impl ServerCase {
             Err(e) => return Err(ruisutil::ioerr("lock err", None)),
             Ok(lkv) => {
                 for k in lkv.keys() {
-                    rts.list.push(k.clone());
+                    if let Some(v) = lkv.get(k) {
+                        // v.conf().name
+                        rts.list.push(crate::entity::node::NodeListIt {
+                            name: k.clone(),
+                            online: v.online(),
+                            addrs: match v.peer_addr() {
+                                Err(e) => {
+                                    log::error!("peer_addr err:{}", e);
+                                    None
+                                }
+                                Ok(v) => Some(v),
+                            },
+                        });
+                    }
                 }
             }
         };

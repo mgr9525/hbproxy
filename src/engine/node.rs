@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{io, time::Duration};
 
 use async_std::{net::TcpStream, task};
 
@@ -40,6 +40,15 @@ impl<'a> NodeEngine {
     pub fn set_conn(&self, conn: TcpStream) {
         let ins = unsafe { self.inner.muts() };
         ins.conn = Some(conn);
+    }
+
+    pub fn peer_addr(&self) -> io::Result<String> {
+        if let Some(conn) = &self.inner.conn {
+            let addr = conn.peer_addr()?;
+            Ok(addr.to_string())
+        } else {
+            Err(ruisutil::ioerr("conn nil", None))
+        }
     }
 
     pub fn stop(&self) {

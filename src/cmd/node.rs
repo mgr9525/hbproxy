@@ -1,7 +1,7 @@
 use crate::{
     app::Application,
     engine,
-    entity::node::{RegNodeRep, RegNodeReq, NodeListRep},
+    entity::node::{NodeListRep, RegNodeRep, RegNodeReq},
     utils,
 };
 
@@ -119,19 +119,24 @@ async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             log::error!("request do err:{}", e);
             return -2;
         }
-        Ok(mut res) => {
+        Ok(res) => {
             if res.get_code() == hbtp::ResCodeOk {
-              // println!("ls");
+                // println!("ls");
                 let data: NodeListRep = match res.body_json() {
-                  Err(e) => {
-                      log::error!("response body err:{}", e);
-                      return -3;
-                  }
-                  Ok(v) => v,
-              };
-              for v in &data.list{
-                println!("{}",v.as_str());
-              }
+                    Err(e) => {
+                        log::error!("response body err:{}", e);
+                        return -3;
+                    }
+                    Ok(v) => v,
+                };
+                println!("{:<20}{:<30}{:^5}", "Addr","Name","Online");
+                for v in &data.list {
+                    let frms = match &v.addrs {
+                        None => "<nil>".to_string(),
+                        Some(v) => v.clone(),
+                    };
+                    println!("{:<20}{:<30}{:^5}", frms.as_str(), v.name.as_str(),v.online);
+                }
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {

@@ -11,6 +11,13 @@ pub struct RegNodeRep {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct NodeListIt {
+    pub name: String,
+    pub addrs: Option<String>,
+    pub online: bool,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct NodeListRep {
-    pub list: Vec<String>,
+    pub list: Vec<NodeListIt>,
 }
