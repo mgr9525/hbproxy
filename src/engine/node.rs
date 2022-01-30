@@ -4,25 +4,25 @@ use async_std::{net::TcpStream, task};
 
 use crate::{case::ServerCase, utils};
 
-pub struct NodeEngineCfg {
+pub struct NodeServerCfg {
     pub name: String,
     pub token: String,
 }
 #[derive(Clone)]
-pub struct NodeEngine {
+pub struct NodeServer {
     inner: ruisutil::ArcMut<Inner>,
 }
 
 struct Inner {
     ctx: ruisutil::Context,
     case: ServerCase,
-    cfg: NodeEngineCfg,
+    cfg: NodeServerCfg,
     conn: Option<TcpStream>,
     ctmout: ruisutil::Timer,
 }
 
-impl<'a> NodeEngine {
-    pub fn new(ctx: ruisutil::Context, case: ServerCase, cfg: NodeEngineCfg) -> Self {
+impl NodeServer {
+    pub fn new(ctx: ruisutil::Context, case: ServerCase, cfg: NodeServerCfg) -> Self {
         Self {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
@@ -34,7 +34,7 @@ impl<'a> NodeEngine {
         }
     }
 
-    pub fn conf(&self) -> &NodeEngineCfg {
+    pub fn conf(&self) -> &NodeServerCfg {
         &self.inner.cfg
     }
     pub fn set_conn(&self, conn: TcpStream) {
@@ -68,9 +68,9 @@ impl<'a> NodeEngine {
                 task::sleep(Duration::from_millis(100)).await;
             }
         });
-        log::debug!("NodeEngine run_recv start:{}", self.inner.cfg.name.as_str());
+        log::debug!("NodeServer run_recv start:{}", self.inner.cfg.name.as_str());
         self.run_recv().await;
-        log::debug!("NodeEngine run_recv end:{}", self.inner.cfg.name.as_str());
+        log::debug!("NodeServer run_recv end:{}", self.inner.cfg.name.as_str());
         // self.inner.case.rm_node(self.inner.cfg.id);
         // });
     }
@@ -80,7 +80,7 @@ impl<'a> NodeEngine {
             if let Some(conn) = &mut ins.conn {
                 match utils::msg::parse_msg(&self.inner.ctx, conn).await {
                     Err(e) => {
-                        log::error!("NodeEngine parse_msg err:{:?}", e);
+                        log::error!("NodeServer parse_msg err:{:?}", e);
                         // self.stop();
                         ins.conn = None;
                         task::sleep(Duration::from_millis(100)).await;

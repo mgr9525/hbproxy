@@ -129,13 +129,13 @@ async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
                     }
                     Ok(v) => v,
                 };
-                println!("{:<20}{:<30}{:^5}", "Addr","Name","Online");
+                println!("{:<30}{:<25}{:^5}","Name", "Addr","Online");
                 for v in &data.list {
                     let frms = match &v.addrs {
                         None => "<nil>".to_string(),
                         Some(v) => v.clone(),
                     };
-                    println!("{:<20}{:<30}{:^5}", frms.as_str(), v.name.as_str(),v.online);
+                    println!("{:<30}{:<25}{:^5}", v.name.as_str(), frms.as_str(),v.online);
                 }
             } else {
                 if let Some(bs) = res.get_bodys() {

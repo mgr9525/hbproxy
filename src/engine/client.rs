@@ -61,7 +61,7 @@ impl NodeClient {
             if let Some(conn) = &mut ins.conn {
                 match utils::msg::parse_msg(&self.inner.ctx, conn).await {
                     Err(e) => {
-                        log::error!("NodeEngine parse_msg err:{:?}", e);
+                        log::error!("NodeClient parse_msg err:{:?}", e);
                         // self.stop();
                         ins.conn = None;
                         task::sleep(Duration::from_millis(100)).await;

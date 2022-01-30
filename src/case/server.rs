@@ -1,9 +1,13 @@
-use std::{collections::HashMap, io, sync::RwLock};
+use std::{
+    collections::{HashMap, LinkedList},
+    io,
+    sync::RwLock,
+};
 
 use async_std::task;
 
 use crate::{
-    engine::{NodeEngine, NodeEngineCfg},
+    engine::{NodeEngine, NodeServer, NodeServerCfg, ProxyEngine},
     entity::node::{NodeListRep, RegNodeRep, RegNodeReq},
     utils,
 };
@@ -18,7 +22,9 @@ pub struct ServerCase {
 struct Inner {
     ctx: ruisutil::Context,
     conf: ServerConf,
-    nodes: RwLock<HashMap<String, NodeEngine>>,
+    proxy: ProxyEngine,
+    node: NodeEngine,
+    nodes: RwLock<HashMap<String, NodeServer>>,
 }
 
 impl ServerCase {
@@ -27,6 +33,8 @@ impl ServerCase {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ctx,
                 conf: conf,
+                proxy: ProxyEngine::new(),
+                node: NodeEngine::new(),
                 nodes: RwLock::new(HashMap::new()),
             }),
         }
@@ -92,7 +100,7 @@ impl ServerCase {
             _ => return c.res_string(utils::HbtpTokenErr, "token err").await, //已存在同名node
         };
 
-        let cfg = NodeEngineCfg {
+        let cfg = NodeServerCfg {
             name: data.name.clone(),
             token: ruisutil::random(32),
         };
@@ -105,7 +113,7 @@ impl ServerCase {
         )
         .await?;
         if let Ok(mut lkv) = self.inner.nodes.write() {
-            let node = NodeEngine::new(self.inner.ctx.clone(), self.clone(), cfg);
+            let node = NodeServer::new(self.inner.ctx.clone(), self.clone(), cfg);
             node.set_conn(c.own_conn());
             lkv.insert(data.name.clone(), node.clone());
             task::spawn(node.start());
