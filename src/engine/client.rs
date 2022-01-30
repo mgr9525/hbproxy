@@ -81,7 +81,7 @@ impl NodeClient {
     }
     async fn reconn(&self) {
         let mut req = hbtp::Request::new(self.inner.cfg.addr.as_str(), 1);
-        req.command("RegNode");
+        req.command("NodeJoin");
         if let Some(vs) = &self.inner.cfg.key {
             req.add_arg("node_key", vs.as_str());
         }

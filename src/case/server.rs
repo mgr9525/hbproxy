@@ -4,7 +4,7 @@ use async_std::task;
 
 use crate::{
     engine::{NodeEngine, NodeEngineCfg},
-    entity::node::{RegNodeRep, RegNodeReq},
+    entity::node::{NodeListRep, RegNodeRep, RegNodeReq},
     utils,
 };
 
@@ -112,6 +112,25 @@ impl ServerCase {
         }
 
         Ok(())
+    }
+
+    pub async fn node_list(&self, c: hbtp::Context) -> io::Result<()> {
+        if !self.authed(&c) {
+            return c.res_string(hbtp::ResCodeAuth, "auth failed").await;
+        }
+
+        let mut rts = NodeListRep { list: Vec::new() };
+        match &self.inner.nodes.read() {
+            Err(e) => return Err(ruisutil::ioerr("lock err", None)),
+            Ok(lkv) => {
+                for k in lkv.keys() {
+                    rts.list.push(k.clone());
+                }
+            }
+        };
+        c.res_json(hbtp::ResCodeOk, &rts).await
+        // Ok(())
+        // Err(ruisutil::ioerr("data err", None))
     }
     /* fn new_id(&self) -> u32 {
         if let Ok(lkv) = self.inner.nodes.read() {

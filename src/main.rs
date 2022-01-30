@@ -82,26 +82,31 @@ fn main() {
         .subcommand(
             SubCommand::with_name("node")
                 .about("start node and join to server")
-                .arg(
-                    Arg::with_name("name")
-                        .required(true)
-                        .value_name("NAME")
-                        .help("node name"),
+                .subcommand(
+                    SubCommand::with_name("join")
+                        .about("start node and join to server")
+                        .arg(
+                            Arg::with_name("name")
+                                .required(true)
+                                .value_name("NAME")
+                                .help("node name"),
+                        )
+                        .arg(
+                            Arg::with_name("addr")
+                                .short("a")
+                                .long("addr")
+                                .value_name("IP:PORT")
+                                .help("join server address.(def:hbproxy.server:6573)"),
+                        )
+                        .arg(
+                            Arg::with_name("key")
+                                .short("k")
+                                .long("key")
+                                .value_name("KEY")
+                                .help("node server key"),
+                        ),
                 )
-                .arg(
-                    Arg::with_name("addr")
-                        .short("a")
-                        .long("addr")
-                        .value_name("IP:PORT")
-                        .help("join server address.(def:hbproxy.server:6573)"),
-                )
-                .arg(
-                    Arg::with_name("key")
-                        .short("k")
-                        .long("key")
-                        .value_name("KEY")
-                        .help("node server key"),
-                ),
+                .subcommand(SubCommand::with_name("ls").about("node list")),
         )
         .get_matches();
 
