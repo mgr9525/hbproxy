@@ -4,6 +4,8 @@ use async_std::{net::TcpStream, task};
 
 use crate::{case::ServerCase, utils};
 
+use super::NodeEngine;
+
 pub struct NodeServerCfg {
     pub name: String,
     pub token: String,
@@ -15,18 +17,18 @@ pub struct NodeServer {
 
 struct Inner {
     ctx: ruisutil::Context,
-    case: ServerCase,
+    egn: NodeEngine,
     cfg: NodeServerCfg,
     conn: Option<TcpStream>,
     ctmout: ruisutil::Timer,
 }
 
 impl NodeServer {
-    pub fn new(ctx: ruisutil::Context, case: ServerCase, cfg: NodeServerCfg) -> Self {
+    pub fn new(ctx: ruisutil::Context, egn: NodeEngine, cfg: NodeServerCfg) -> Self {
         Self {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
-                case: case,
+                egn: egn,
                 cfg: cfg,
                 conn: None,
                 ctmout: ruisutil::Timer::new(Duration::from_secs(30)),
