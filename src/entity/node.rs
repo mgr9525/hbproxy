@@ -4,12 +4,10 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct RegNodeReq{
-  pub id:Option<u32>,
-  pub name:Option<String>,
-  pub token:String,
+  pub name:String,
+  pub token:Option<String>,
 }
 #[derive(Serialize, Deserialize)]
 pub struct RegNodeRep{
-  pub id:u32,
   pub token:String,
 }

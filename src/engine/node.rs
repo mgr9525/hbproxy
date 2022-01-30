@@ -5,8 +5,7 @@ use async_std::{net::TcpStream, task};
 use crate::{case::ServerCase, utils};
 
 pub struct NodeEngineCfg {
-    pub id: u32,
-    pub name: Option<String>,
+    pub name: String,
     pub token: String,
 }
 #[derive(Clone)]
@@ -46,9 +45,13 @@ impl<'a> NodeEngine {
     pub fn stop(&self) {
         let ins = unsafe { self.inner.muts() };
         self.inner.ctx.stop();
+        if let Some(conn) = &mut ins.conn {
+            conn.shutdown(std::net::Shutdown::Both);
+        }
         ins.conn = None;
     }
     pub async fn start(self) {
+        self.inner.ctmout.reset();
         let c = self.clone();
         task::spawn(async move {
             while !c.inner.ctx.done() {
@@ -56,9 +59,9 @@ impl<'a> NodeEngine {
                 task::sleep(Duration::from_millis(100)).await;
             }
         });
-        log::info!("NodeEngine run_recv start:id:{}", self.inner.cfg.id);
+        log::debug!("NodeEngine run_recv start:{}", self.inner.cfg.name.as_str());
         self.run_recv().await;
-        log::info!("NodeEngine run_recv end:id:{}", self.inner.cfg.id);
+        log::debug!("NodeEngine run_recv end:{}", self.inner.cfg.name.as_str());
         // self.inner.case.rm_node(self.inner.cfg.id);
         // });
     }
@@ -88,17 +91,41 @@ impl<'a> NodeEngine {
     }
     async fn run_check(&self) {
         if self.inner.ctmout.tick() {
-            unsafe { self.inner.muts().conn = None };
+            if let Some(_) = self.inner.conn {
+                unsafe { self.inner.muts().conn = None };
+            }
         }
     }
     async fn on_msg(&self, mut msg: utils::msg::Message) {
-        self.inner.ctmout.tick();
+        let ins = unsafe { self.inner.muts() };
+        self.inner.ctmout.reset();
         match msg.control {
+            0 => {
+                log::debug!("{} heart", self.inner.cfg.name.as_str());
+                if let Some(conn) = &mut ins.conn {
+                    if let Err(e) = utils::msg::send_msg(
+                        &self.inner.ctx,
+                        conn,
+                        0,
+                        Some("heart".into()),
+                        None,
+                        None,
+                    )
+                    .await
+                    {
+                        log::error!("send_msg heart err:{}", e);
+                    }
+                }
+            }
             _ => {}
         }
     }
 
     pub fn online(&self) -> bool {
-        !self.inner.ctmout.tick()
+        if let None = self.inner.conn {
+            false
+        } else {
+            !self.inner.ctmout.tmout()
+        }
     }
 }

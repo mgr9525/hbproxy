@@ -12,11 +12,11 @@ extern crate serde;
 extern crate serde_json;
 
 mod app;
-mod cmd;
 mod case;
-mod utils;
+mod cmd;
 mod engine;
 mod entity;
+mod utils;
 
 use std::io;
 
@@ -83,17 +83,18 @@ fn main() {
             SubCommand::with_name("node")
                 .about("start node and join to server")
                 .arg(
+                    Arg::with_name("name")
+                        .required(true)
+                        .value_name("NAME")
+                        .help("node name"),
+                )
+                .arg(
                     Arg::with_name("addr")
+                        .short("a")
+                        .long("addr")
                         .value_name("IP:PORT")
                         .help("join server address.(def:hbproxy.server:6573)"),
                 )
-                .arg(
-                  Arg::with_name("name")
-                      .short("n")
-                      .long("name")
-                      .value_name("NAME")
-                      .help("node name"),
-              )
                 .arg(
                     Arg::with_name("key")
                         .short("k")
@@ -109,15 +110,15 @@ fn main() {
         dup = flexi_logger::Duplicate::Debug;
         "debug"
     } else {
-        // "info"
-        dup = flexi_logger::Duplicate::Debug;
-        "debug"
+        "info"
+        // dup = flexi_logger::Duplicate::Debug;
+        // "debug"
     };
     let loger = flexi_logger::Logger::try_with_str(logs)
         .unwrap()
         .duplicate_to_stderr(dup);
     loger.start();
-    log::info!("Hello, world!");
+    log::debug!("Hello, world!");
     if Application::init("/data".into(), matches) {
         let rt = async_std::task::block_on(cmd::cmds());
         //println!("block on:{}", rt);
@@ -127,7 +128,6 @@ fn main() {
         std::process::exit(-1);
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -162,7 +162,7 @@ mod tests {
               token:"".into(),
             }; */
             let mut data = serde_json::Value::default();
-            data["token"]=serde_json::Value::String("ihaha".to_string());
+            data["token"] = serde_json::Value::String("ihaha".to_string());
             // data["id"] = serde_json::Value::Number(serde_json::Number::from(123i64));
             match req.do_json(None, &data).await {
                 Err(e) => println!("do err:{}", e),

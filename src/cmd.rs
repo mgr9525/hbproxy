@@ -2,7 +2,9 @@ use std::io;
 
 use crate::{
     app::{self, Application},
-    case, entity::node::RegNodeReq,
+    case, engine,
+    entity::node::{RegNodeRep, RegNodeReq},
+    utils,
 };
 
 pub async fn cmds() -> i32 {
@@ -67,34 +69,75 @@ async fn handle1(c: hbtp::Context) -> io::Result<()> {
 }
 
 async fn nodes<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+    let names = if let Some(vs) = args.value_of("name") {
+        vs
+    } else {
+        "unkown"
+    };
     let addrs = if let Some(vs) = args.value_of("addr") {
         vs
     } else {
         "localhost:6573"
     };
-    let keys = if let Some(vs) = args.value_of("key") {
-        vs
-    } else {
-        ""
+    match utils::remote_version(addrs).await {
+        Err(e) => {
+            log::error!("remote [{}] version err:{}", addrs, e);
+            return -1;
+        }
+        Ok(v) => log::info!("remote [{}] version:{}", addrs, v.as_str()),
     };
+
+    let mut cfg = engine::NodeClientCfg {
+        addr: addrs.into(),
+        key: None,
+        name: names.into(),
+        token: String::new(),
+    };
+
     let mut req = hbtp::Request::new(addrs, 1);
     req.command("reg_node");
-    let mut data = RegNodeReq{
-      id:None,
-      name:None,
-      token:String::new(),
-    };
-    if let Some(vs) = args.value_of("name") {
-      data.name=Some(vs.into());
+    if let Some(vs) = args.value_of("key") {
+        req.add_arg("node_key", vs);
+        cfg.key = Some(vs.into());
     }
+    let data = RegNodeReq {
+        name: cfg.name.clone(),
+        token: None,
+    };
     match req.do_json(None, &data).await {
-        Err(e) => println!("do err:{}", e),
-        Ok(res) => {
-            println!("res code:{}", res.get_code());
-            if let Some(bs) = res.get_bodys() {
-                println!("res data:{}", std::str::from_utf8(&bs[..]).unwrap())
+        Err(e) => {
+            log::error!("request do err:{}", e);
+            -2
+        }
+        Ok(mut res) => {
+            if res.get_code() == utils::HbtpTokenErr {
+                log::error!("已存在相同名称的节点");
+            }
+            if res.get_code() == hbtp::ResCodeOk {
+                let data: RegNodeRep = match res.body_json() {
+                    Err(e) => {
+                        log::error!("response body err:{}", e);
+                        return -3;
+                    }
+                    Ok(v) => v,
+                };
+                cfg.token = data.token.clone();
+                let cli = engine::NodeClient::new(Application::context(), res.own_conn(), cfg);
+                match cli.start().await {
+                    Err(e) => {
+                        log::error!("client run err:{}", e);
+                        -3
+                    }
+                    Ok(_) => 0,
+                }
+            } else {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        log::error!("response err:{}", vs);
+                    }
+                }
+                -4
             }
         }
-    };
-    0
+    }
 }
