@@ -1,4 +1,5 @@
 mod node;
+mod proxy;
 mod server;
 
 use std::io;
@@ -18,11 +19,14 @@ pub async fn cmds() -> i32 {
             println!("Printing normally...");
         }
         0
-    } else if let Some(v) = Application::get().cmdargs.subcommand_matches("run") {
+    } else if let Some(v) = Application::get().cmdargs.subcommand_matches("server") {
         server::runs(v).await
     } else if let Some(v) = Application::get().cmdargs.subcommand_matches("node") {
         node::runs(v).await
+      } else if let Some(v) = Application::get().cmdargs.subcommand_matches("proxy") {
+        proxy::runs(v).await
     } else {
         -2
     }
 }
+

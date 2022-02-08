@@ -15,39 +15,13 @@ pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     }
 }
 
-fn req_addrs<'a>(args: &clap::ArgMatches<'a>) -> String {
-    if let Some(vs) = args.value_of("addr") {
-        vs.to_string()
-    } else {
-        utils::envs("HBPROXY_ADDR", "localhost:6573")
-    }
-}
-fn req_keys<'a>(args: &clap::ArgMatches<'a>) -> Option<String> {
-    if let Some(vs) = args.value_of("key") {
-        // req.add_arg("node_key", vs);
-        Some(vs.to_string())
-    } else if let Ok(vs) = std::env::var("HBPROXY_KEY") {
-        // req.add_arg("node_key", vs.as_str());
-        Some(vs)
-    } else {
-        None
-    }
-}
-fn new_req<'a>(args: &clap::ArgMatches<'a>) -> hbtp::Request {
-    let mut req = hbtp::Request::new(req_addrs(args).as_str(), 1);
-    if let Some(vs) = req_keys(args) {
-        req.add_arg("node_key", vs.as_str());
-        // cfg.key = Some(vs.into());
-    }
-    req
-}
 async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     let names = if let Some(vs) = args.value_of("name") {
         vs
     } else {
         "unkown"
     };
-    let addrs = req_addrs(args);
+    let addrs = Application::get().addrs.clone();
     match utils::remote_version(addrs.as_str()).await {
         Err(e) => {
             log::error!("remote [{}] version err:{}", addrs, e);
@@ -63,9 +37,9 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         token: String::new(),
     };
 
-    let mut req = hbtp::Request::new(addrs.as_str(), 1);
+    let mut req = hbtp::Request::new(addrs.as_str(), 2);
     req.command("NodeJoin");
-    if let Some(vs) = req_keys(args) {
+    if let Some(vs) = &Application::get().keys {
         req.add_arg("node_key", vs.as_str());
         cfg.key = Some(vs.into());
     }
@@ -112,7 +86,7 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
 }
 
 async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
-    let mut req = new_req(args);
+    let mut req = Application::new_req(2);
     req.command("NodeList");
     match req.dors(None, None).await {
         Err(e) => {
@@ -129,13 +103,18 @@ async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
                     }
                     Ok(v) => v,
                 };
-                println!("{:<30}{:<25}{:^5}","Name", "Addr","Online");
+                println!("{:<30}{:<25}{:^5}", "Name", "Addr", "Online");
                 for v in &data.list {
                     let frms = match &v.addrs {
                         None => "<nil>".to_string(),
                         Some(v) => v.clone(),
                     };
-                    println!("{:<30}{:<25}{:^5}", v.name.as_str(), frms.as_str(),v.online);
+                    println!(
+                        "{:<30}{:<25}{:^5}",
+                        v.name.as_str(),
+                        frms.as_str(),
+                        v.online
+                    );
                 }
             } else {
                 if let Some(bs) = res.get_bodys() {

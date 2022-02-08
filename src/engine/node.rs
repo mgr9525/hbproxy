@@ -1,8 +1,13 @@
-use std::{io, time::Duration};
+use std::{
+    collections::HashMap,
+    io,
+    sync::{Mutex, RwLock},
+    time::Duration,
+};
 
 use async_std::{net::TcpStream, task};
 
-use crate::{case::ServerCase, utils};
+use crate::{case::ServerCase, entity::node::NodeConnMsg, utils};
 
 use super::NodeEngine;
 
@@ -21,6 +26,8 @@ struct Inner {
     cfg: NodeServerCfg,
     conn: Option<TcpStream>,
     ctmout: ruisutil::Timer,
+
+    waits: RwLock<HashMap<String, Mutex<Option<TcpStream>>>>,
 }
 
 impl NodeServer {
@@ -32,6 +39,7 @@ impl NodeServer {
                 cfg: cfg,
                 conn: None,
                 ctmout: ruisutil::Timer::new(Duration::from_secs(30)),
+                waits: RwLock::new(HashMap::new()),
             }),
         }
     }
@@ -138,5 +146,89 @@ impl NodeServer {
         } else {
             !self.inner.ctmout.tmout()
         }
+    }
+
+    pub fn put_conn(&self, xids: &String, conn: TcpStream) -> io::Result<()> {
+        if let Ok(lkv) = self.inner.waits.read() {
+            if let Some(mkv) = lkv.get(xids) {
+                if let Ok(mut v) = mkv.lock() {
+                    *v = Some(conn);
+                    return Ok(());
+                }
+            }
+        }
+        Err(ruisutil::ioerr("timeout", None))
+    }
+    pub async fn wait_conn(&self, port: i32) -> io::Result<TcpStream> {
+        let ins = unsafe { self.inner.muts() };
+        let mut xids = format!("{}-{}", xid::new().to_string().as_str(), port);
+        if let Ok(lkv) = self.inner.waits.read() {
+            while lkv.contains_key(&xids) {
+                xids = format!("{}-{}", xid::new().to_string().as_str(), port);
+            }
+        }
+        if let Ok(mut lkv) = self.inner.waits.write() {
+            lkv.insert(xids.clone(), Mutex::new(None));
+        }
+        let bds = match serde_json::to_vec(&NodeConnMsg {
+            name: self.inner.cfg.name.clone(),
+            xids: xids.clone(),
+            port: port,
+        }) {
+            Err(e) => return Err(ruisutil::ioerr("to json err", None)),
+            Ok(v) => v,
+        };
+        if let Some(conn) = &mut ins.conn {
+            if let Err(e) = utils::msg::send_msg(
+                &self.inner.ctx,
+                conn,
+                1,
+                None,
+                None,
+                Some(bds.into_boxed_slice()),
+            )
+            .await
+            {
+                log::error!("wait_conn send_msg {} err:{}", xids.as_str(), e);
+                if let Ok(mut lkv) = self.inner.waits.write() {
+                    lkv.remove(&xids);
+                }
+            } else {
+                let ctx = ruisutil::Context::with_timeout(
+                    Some(self.inner.ctx.clone()),
+                    Duration::from_secs(5),
+                );
+                let mut rets = None;
+                while !ctx.done() {
+                    let mut hased = false;
+                    if let Ok(lkv) = self.inner.waits.read() {
+                        if let Some(mkv) = lkv.get(&xids) {
+                            if let Ok(mut v) = mkv.lock() {
+                                if let Some(_) = &mut *v {
+                                    hased = true;
+                                }
+                            }
+                        }
+                    }
+                    if hased {
+                        if let Ok(mut lkv) = self.inner.waits.write() {
+                            if let Some(mkv) = lkv.remove(&xids) {
+                                if let Ok(mut v) = mkv.lock() {
+                                    // rets=*v;
+                                    // *v=None;
+                                    rets = std::mem::replace(&mut v, None);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    task::sleep(Duration::from_millis(10)).await;
+                }
+                if let Some(conn) = rets {
+                    return Ok(conn);
+                }
+            }
+        }
+        Err(ruisutil::ioerr("timeout", None))
     }
 }

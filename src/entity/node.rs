@@ -21,3 +21,10 @@ pub struct NodeListIt {
 pub struct NodeListRep {
     pub list: Vec<NodeListIt>,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct NodeConnMsg {
+    pub name: String,
+    pub xids: String,
+    pub port: i32,
+}

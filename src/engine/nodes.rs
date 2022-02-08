@@ -4,7 +4,7 @@ use async_std::{net::TcpStream, task};
 
 use crate::{
     case::ServerCase,
-    entity::node::{NodeListRep, RegNodeReq},
+    entity::node::{NodeConnMsg, NodeListRep, RegNodeReq},
 };
 
 use super::{NodeServer, NodeServerCfg};
@@ -45,7 +45,6 @@ impl NodeEngine {
                         );
                         if token.eq(&v.conf().token) {
                             st = 1;
-                            v.stop();
                         }
                     }
                 }
@@ -73,6 +72,9 @@ impl NodeEngine {
     pub fn register(&self, cfg: NodeServerCfg, conn: TcpStream) -> io::Result<()> {
         if let Ok(mut lkv) = self.inner.nodes.write() {
             let name = cfg.name.clone();
+            if let Some(v) = lkv.get(&name) {
+                v.stop();
+            }
             let node = NodeServer::new(self.inner.ctx.clone(), self.clone(), cfg);
             node.set_conn(conn);
             lkv.insert(name, node.clone());
@@ -91,7 +93,7 @@ impl NodeEngine {
             }
         }
     }
-    pub fn node_list(&self) -> io::Result<NodeListRep> {
+    pub fn show_list(&self) -> io::Result<NodeListRep> {
         let mut rts = NodeListRep { list: Vec::new() };
         match &self.inner.nodes.read() {
             Err(e) => return Err(ruisutil::ioerr("lock err", None)),
@@ -115,5 +117,31 @@ impl NodeEngine {
             }
         };
         Ok(rts)
+    }
+
+    pub fn find_node(&self, k: &String) -> io::Result<NodeServer> {
+        match &self.inner.nodes.read() {
+            Err(e) => return Err(ruisutil::ioerr("lock err", None)),
+            Ok(lkv) => {
+                if let Some(v) = lkv.get(k) {
+                    if v.online() {
+                        return Ok(v.clone());
+                    }
+                }
+            }
+        }
+        Err(ruisutil::ioerr("node not found", None))
+    }
+
+    pub fn put_conn(&self, data: NodeConnMsg, conn: TcpStream) -> io::Result<()> {
+        match &self.inner.nodes.read() {
+            Err(e) => return Err(ruisutil::ioerr("lock err", None)),
+            Ok(lkv) => {
+                if let Some(v) = lkv.get(&data.name) {
+                    v.put_conn(&data.xids, conn)?;
+                }
+            }
+        };
+        Ok(())
     }
 }

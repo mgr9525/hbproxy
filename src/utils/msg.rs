@@ -115,8 +115,8 @@ pub async fn send_msg(
     conn: &mut TcpStream,
     ctrl: i32,
     cmds: Option<String>,
-    hds: Option<Arc<Box<[u8]>>>,
-    bds: Option<Arc<Box<[u8]>>>,
+    hds: Option<Box<[u8]>>,
+    bds: Option<Box<[u8]>>,
 ) -> io::Result<()> {
     let mut info = MsgInfo::new();
     let infoln = mem::size_of::<MsgInfo>();

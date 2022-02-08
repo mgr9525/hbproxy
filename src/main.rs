@@ -6,6 +6,7 @@ extern crate futures;
 extern crate hbtp;
 extern crate hex;
 extern crate log;
+extern crate xid;
 extern crate once_cell;
 extern crate ruisutil;
 extern crate serde;
@@ -36,6 +37,20 @@ fn main() {
                 .long("work")
                 .help("process work path.(def:$HOME/.$(name))"),
         )
+        .arg(
+            Arg::with_name("addr")
+                .short("a")
+                .long("addr")
+                .value_name("IP:PORT")
+                .help("server address.(example:0.0.0.0:6573)"),
+        )
+        .arg(
+            Arg::with_name("key")
+                .short("k")
+                .long("key")
+                .value_name("KEY")
+                .help("server key"),
+        )
         /* .arg(
             Arg::with_name("config")
                 .short("c")
@@ -61,27 +76,10 @@ fn main() {
                 ),
         )
         .subcommand(SubCommand::with_name("listcodec").about("controls testing features"))
-        .subcommand(
-            SubCommand::with_name("run")
-                .about("controls testing features")
-                .arg(
-                    Arg::with_name("bind")
-                        .short("b")
-                        .long("bind")
-                        .value_name("IP:PORT")
-                        .help("bind node server address.(def:0.0.0.0:6573)"),
-                )
-                .arg(
-                    Arg::with_name("key")
-                        .short("k")
-                        .long("key")
-                        .value_name("KEY")
-                        .help("node server key"),
-                ),
-        )
+        .subcommand(SubCommand::with_name("server").about("controls testing features"))
         .subcommand(
             SubCommand::with_name("node")
-                .about("start node and join to server")
+                .about("node command")
                 .subcommand(
                     SubCommand::with_name("join")
                         .about("start node and join to server")
@@ -90,23 +88,36 @@ fn main() {
                                 .required(true)
                                 .value_name("NAME")
                                 .help("node name"),
-                        )
-                        .arg(
-                            Arg::with_name("addr")
-                                .short("a")
-                                .long("addr")
-                                .value_name("IP:PORT")
-                                .help("join server address.(def:hbproxy.server:6573)"),
-                        )
-                        .arg(
-                            Arg::with_name("key")
-                                .short("k")
-                                .long("key")
-                                .value_name("KEY")
-                                .help("node server key"),
                         ),
                 )
                 .subcommand(SubCommand::with_name("ls").about("node list")),
+        )
+        .subcommand(
+            SubCommand::with_name("proxy")
+                .about("proxy command")
+                .subcommand(
+                    SubCommand::with_name("add")
+                        .about("add new proxy rule")
+                        .arg(
+                            Arg::with_name("bind")
+                                .required(true)
+                                .value_name("LISTEN")
+                                .help("listen on(example:0.0.0.0:1080)"),
+                        )
+                        .arg(
+                            Arg::with_name("goto")
+                                .required(true)
+                                .value_name("GOTO")
+                                .help("proxy to(example:localhost:1081)"),
+                        )
+                        .arg(
+                            Arg::with_name("name")
+                                .long("name")
+                                .value_name("NAME")
+                                .help("proxy rule name"),
+                        ),
+                )
+                .subcommand(SubCommand::with_name("ls").about("proxy list")),
         )
         .get_matches();
 
@@ -160,7 +171,7 @@ mod tests {
     #[test]
     fn node_reg() {
         async_std::task::block_on(async {
-            let mut req = Request::new("localhost:6573", 1);
+            let mut req = Request::new("localhost:6573", 2);
             req.command("reg_node");
             /* let mut data = RegNodeReq{
               id:1234,
