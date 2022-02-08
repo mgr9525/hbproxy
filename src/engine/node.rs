@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, LinkedList},
     io,
     sync::{Mutex, RwLock},
     time::Duration,
@@ -24,21 +24,31 @@ struct Inner {
     ctx: ruisutil::Context,
     egn: NodeEngine,
     cfg: NodeServerCfg,
-    conn: Option<TcpStream>,
+    conn: TcpStream,
+    shuted: bool,
     ctmout: ruisutil::Timer,
 
+    msgs: Mutex<LinkedList<Box<[u8]>>>,
     waits: RwLock<HashMap<String, Mutex<Option<TcpStream>>>>,
 }
 
 impl NodeServer {
-    pub fn new(ctx: ruisutil::Context, egn: NodeEngine, cfg: NodeServerCfg) -> Self {
+    pub fn new(
+        ctx: ruisutil::Context,
+        egn: NodeEngine,
+        conn: TcpStream,
+        cfg: NodeServerCfg,
+    ) -> Self {
         Self {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
                 egn: egn,
                 cfg: cfg,
-                conn: None,
+                conn: conn,
+                shuted: false,
                 ctmout: ruisutil::Timer::new(Duration::from_secs(30)),
+
+                msgs: Mutex::new(LinkedList::new()),
                 waits: RwLock::new(HashMap::new()),
             }),
         }
@@ -47,27 +57,20 @@ impl NodeServer {
     pub fn conf(&self) -> &NodeServerCfg {
         &self.inner.cfg
     }
-    pub fn set_conn(&self, conn: TcpStream) {
-        let ins = unsafe { self.inner.muts() };
-        ins.conn = Some(conn);
-    }
 
     pub fn peer_addr(&self) -> io::Result<String> {
-        if let Some(conn) = &self.inner.conn {
-            let addr = conn.peer_addr()?;
-            Ok(addr.to_string())
-        } else {
-            Err(ruisutil::ioerr("conn nil", None))
-        }
+        let addr = self.inner.conn.peer_addr()?;
+        Ok(addr.to_string())
     }
 
-    pub fn stop(&self) {
+    fn close(&self) {
         let ins = unsafe { self.inner.muts() };
+        ins.shuted = true;
+        ins.conn.shutdown(std::net::Shutdown::Both);
+    }
+    pub fn stop(&self) {
         self.inner.ctx.stop();
-        if let Some(conn) = &mut ins.conn {
-            conn.shutdown(std::net::Shutdown::Both);
-        }
-        ins.conn = None;
+        self.close();
     }
     pub async fn start(self) {
         self.inner.ctmout.reset();
@@ -78,21 +81,27 @@ impl NodeServer {
                 task::sleep(Duration::from_millis(100)).await;
             }
         });
+        let c = self.clone();
+        task::spawn(async move {
+            while !c.inner.ctx.done() {
+                c.run_send().await;
+            }
+        });
         log::debug!("NodeServer run_recv start:{}", self.inner.cfg.name.as_str());
         self.run_recv().await;
         log::debug!("NodeServer run_recv end:{}", self.inner.cfg.name.as_str());
         // self.inner.case.rm_node(self.inner.cfg.id);
         // });
     }
-    pub async fn run_recv(&self) {
+    async fn run_recv(&self) {
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
-            if let Some(conn) = &mut ins.conn {
-                match utils::msg::parse_msg(&self.inner.ctx, conn).await {
+            if !self.inner.shuted {
+                match utils::msg::parse_msg(&self.inner.ctx, &mut ins.conn).await {
                     Err(e) => {
                         log::error!("NodeServer parse_msg err:{:?}", e);
                         // self.stop();
-                        ins.conn = None;
+                        self.close();
                         task::sleep(Duration::from_millis(100)).await;
                     }
                     Ok(v) => {
@@ -108,10 +117,38 @@ impl NodeServer {
             }
         }
     }
+    async fn run_send(&self) {
+        let ins = unsafe { self.inner.muts() };
+        while !self.inner.ctx.done() {
+            if !self.inner.shuted {
+                let mut msg = None;
+                match self.inner.msgs.lock() {
+                    Err(e) => log::error!("run_send err:{}", e),
+                    Ok(mut lkv) => msg = lkv.pop_front(),
+                }
+                if let Some(v) = msg {
+                    if let Err(e) =
+                        utils::msg::send_msg(&self.inner.ctx, &mut ins.conn, 1, None, None, Some(v))
+                            .await
+                    {
+                        log::error!("run_send send_msg err:{}", e);
+                        /* if let Ok(mut lkv) = self.inner.waits.write() {
+                            lkv.remove(&xids);
+                        } */
+                        task::sleep(Duration::from_millis(10)).await;
+                    }
+                } else {
+                    task::sleep(Duration::from_millis(10)).await;
+                }
+            } else {
+                task::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
     async fn run_check(&self) {
         if self.inner.ctmout.tick() {
-            if let Some(_) = self.inner.conn {
-                unsafe { self.inner.muts().conn = None };
+            if !self.inner.shuted {
+                self.close();
             }
         }
     }
@@ -121,10 +158,10 @@ impl NodeServer {
         match msg.control {
             0 => {
                 log::debug!("{} heart", self.inner.cfg.name.as_str());
-                if let Some(conn) = &mut ins.conn {
+                if !self.inner.shuted {
                     if let Err(e) = utils::msg::send_msg(
                         &self.inner.ctx,
-                        conn,
+                        &mut ins.conn,
                         0,
                         Some("heart".into()),
                         None,
@@ -141,7 +178,7 @@ impl NodeServer {
     }
 
     pub fn online(&self) -> bool {
-        if let None = self.inner.conn {
+        if self.inner.shuted {
             false
         } else {
             !self.inner.ctmout.tmout()
@@ -178,56 +215,54 @@ impl NodeServer {
             Err(e) => return Err(ruisutil::ioerr("to json err", None)),
             Ok(v) => v,
         };
-        if let Some(conn) = &mut ins.conn {
-            if let Err(e) = utils::msg::send_msg(
-                &self.inner.ctx,
-                conn,
-                1,
-                None,
-                None,
-                Some(bds.into_boxed_slice()),
-            )
-            .await
-            {
-                log::error!("wait_conn send_msg {} err:{}", xids.as_str(), e);
-                if let Ok(mut lkv) = self.inner.waits.write() {
-                    lkv.remove(&xids);
-                }
-            } else {
-                let ctx = ruisutil::Context::with_timeout(
-                    Some(self.inner.ctx.clone()),
-                    Duration::from_secs(5),
-                );
-                let mut rets = None;
-                while !ctx.done() {
-                    let mut hased = false;
-                    if let Ok(lkv) = self.inner.waits.read() {
-                        if let Some(mkv) = lkv.get(&xids) {
-                            if let Ok(mut v) = mkv.lock() {
-                                if let Some(_) = &mut *v {
-                                    hased = true;
-                                }
-                            }
-                        }
+        if !self.inner.shuted {
+            match self.inner.msgs.lock() {
+                Err(e) => {
+                    log::error!("wait_conn send_msg {} err:{}", xids.as_str(), e);
+                    if let Ok(mut lkv) = self.inner.waits.write() {
+                        lkv.remove(&xids);
                     }
-                    if hased {
-                        if let Ok(mut lkv) = self.inner.waits.write() {
-                            if let Some(mkv) = lkv.remove(&xids) {
-                                if let Ok(mut v) = mkv.lock() {
-                                    // rets=*v;
-                                    // *v=None;
-                                    rets = std::mem::replace(&mut v, None);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    task::sleep(Duration::from_millis(10)).await;
+                    return Err(ruisutil::ioerr("lock err", None));
                 }
-                if let Some(conn) = rets {
-                    return Ok(conn);
-                }
+                Ok(mut lkv) => lkv.push_back(bds.into_boxed_slice()),
             }
+
+            let ctx = ruisutil::Context::with_timeout(
+                Some(self.inner.ctx.clone()),
+                Duration::from_secs(5),
+            );
+            let mut rets = None;
+            while !ctx.done() {
+                let mut hased = false;
+                if let Ok(lkv) = self.inner.waits.read() {
+                    if let Some(mkv) = lkv.get(&xids) {
+                        if let Ok(mut v) = mkv.lock() {
+                            if let Some(_) = &mut *v {
+                                hased = true;
+                            }
+                        }
+                    }
+                }
+                if hased {
+                    if let Ok(mut lkv) = self.inner.waits.write() {
+                        if let Some(mkv) = lkv.remove(&xids) {
+                            if let Ok(mut v) = mkv.lock() {
+                                // rets=*v;
+                                // *v=None;
+                                rets = std::mem::replace(&mut v, None);
+                                break;
+                            }
+                        }
+                    }
+                }
+                task::sleep(Duration::from_millis(10)).await;
+            }
+            if let Some(conn) = rets {
+                return Ok(conn);
+            }
+        }
+        if let Ok(mut lkv) = self.inner.waits.write() {
+            lkv.remove(&xids);
         }
         Err(ruisutil::ioerr("timeout", None))
     }

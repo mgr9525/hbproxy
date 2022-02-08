@@ -75,8 +75,7 @@ impl NodeEngine {
             if let Some(v) = lkv.get(&name) {
                 v.stop();
             }
-            let node = NodeServer::new(self.inner.ctx.clone(), self.clone(), cfg);
-            node.set_conn(conn);
+            let node = NodeServer::new(self.inner.ctx.clone(), self.clone(), conn,cfg);
             lkv.insert(name, node.clone());
             task::spawn(node.start());
             Ok(())

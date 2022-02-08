@@ -25,7 +25,8 @@ pub struct NodeClient {
 struct Inner {
     ctx: ruisutil::Context,
     cfg: NodeClientCfg,
-    conn: Option<TcpStream>,
+    conn: TcpStream,
+    shuted: bool,
     conntm: ruisutil::Timer,
     ctms: ruisutil::Timer,
     ctmout: ruisutil::Timer,
@@ -37,12 +38,18 @@ impl NodeClient {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ctx,
                 cfg: cfg,
-                conn: Some(conn),
+                conn: conn,
+                shuted: false,
                 conntm: ruisutil::Timer::new(Duration::from_secs(2)),
                 ctms: ruisutil::Timer::new(Duration::from_secs(20)),
                 ctmout: ruisutil::Timer::new(Duration::from_secs(30)),
             }),
         }
+    }
+    fn close(&self) {
+        let ins = unsafe { self.inner.muts() };
+        ins.shuted = true;
+        ins.conn.shutdown(std::net::Shutdown::Both);
     }
     pub async fn start(self) -> io::Result<()> {
         self.inner.ctmout.reset();
@@ -62,12 +69,17 @@ impl NodeClient {
     pub async fn run_recv(&self) {
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
-            if let Some(conn) = &mut ins.conn {
-                match utils::msg::parse_msg(&self.inner.ctx, conn).await {
+            if !self.inner.shuted {
+                match utils::msg::parse_msg(&self.inner.ctx, &mut ins.conn).await {
                     Err(e) => {
-                        log::error!("NodeClient parse_msg err:{:?}", e);
+                        log::error!(
+                            "NodeClient({}) parse_msg err:{:?}",
+                            self.inner.cfg.addr.as_str(),
+                            e
+                        );
                         // self.stop();
-                        ins.conn = None;
+                        self.close();
+                        log::debug!("NodeClient({}) close!!", self.inner.cfg.addr.as_str());
                         task::sleep(Duration::from_millis(100)).await;
                     }
                     Ok(v) => {
@@ -84,6 +96,7 @@ impl NodeClient {
         }
     }
     async fn reconn(&self) {
+        log::debug!("NodeClient reconn start:{}", self.inner.cfg.addr.as_str());
         let mut req = hbtp::Request::new(self.inner.cfg.addr.as_str(), 2);
         req.command("NodeJoin");
         if let Some(vs) = &self.inner.cfg.key {
@@ -113,7 +126,7 @@ impl NodeClient {
                     };
                     self.inner.ctmout.reset();
                     ins.cfg.token = data.token.clone();
-                    ins.conn = Some(res.own_conn());
+                    ins.conn = res.own_conn();
                 } else {
                     if let Some(bs) = res.get_bodys() {
                         if let Ok(vs) = std::str::from_utf8(&bs[..]) {
@@ -126,11 +139,25 @@ impl NodeClient {
     }
     async fn run_check(&self) {
         let ins = unsafe { self.inner.muts() };
+        if self.inner.shuted {
+            if self.inner.conntm.tick() {
+                self.reconn().await;
+            }
+        } else {
+            if self.inner.ctmout.tick() {
+                log::debug!(
+                    "NodeClient({}) timeout->close!!",
+                    self.inner.cfg.addr.as_str()
+                );
+                self.close();
+            }
+        }
+
         if self.inner.ctms.tick() {
-            if let Some(conn) = &mut ins.conn {
+            if !self.inner.shuted {
                 match utils::msg::send_msg(
                     &self.inner.ctx,
-                    conn,
+                    &mut ins.conn,
                     0,
                     Some("heart".into()),
                     None,
@@ -141,16 +168,6 @@ impl NodeClient {
                     Err(e) => log::error!("send_msg heart err:{}", e),
                     Ok(_) => self.inner.ctmout.reset(),
                 };
-            }
-        }
-        if self.inner.ctmout.tick() {
-            if let Some(_) = self.inner.conn {
-                unsafe { self.inner.muts().conn = None };
-            }
-        }
-        if let None = self.inner.conn {
-            if self.inner.conntm.tick() {
-                self.reconn().await;
             }
         }
     }
@@ -197,7 +214,12 @@ impl NodeClient {
                         }
                     };
                     log::debug!("client Proxyer start on -> {}", addrs.as_str());
-                    let px = Proxyer::new(self.inner.ctx.clone(),addrs.clone(), res.own_conn(), connlc);
+                    let px = Proxyer::new(
+                        self.inner.ctx.clone(),
+                        addrs.clone(),
+                        res.own_conn(),
+                        connlc,
+                    );
                     // let px = Proxyer::new(self.inner.ctx.clone(), res.own_conn(), data.port);
                     px.start().await;
                 } else {
