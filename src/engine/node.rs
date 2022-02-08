@@ -7,7 +7,11 @@ use std::{
 
 use async_std::{net::TcpStream, task};
 
-use crate::{case::ServerCase, entity::node::NodeConnMsg, utils};
+use crate::{
+    case::ServerCase,
+    entity::node::NodeConnMsg,
+    utils::{self, msg::Messages},
+};
 
 use super::NodeEngine;
 
@@ -28,7 +32,7 @@ struct Inner {
     shuted: bool,
     ctmout: ruisutil::Timer,
 
-    msgs: Mutex<LinkedList<Box<[u8]>>>,
+    msgs: Mutex<LinkedList<Messages>>,
     waits: RwLock<HashMap<String, Mutex<Option<TcpStream>>>>,
 }
 
@@ -127,11 +131,8 @@ impl NodeServer {
                     Ok(mut lkv) => msg = lkv.pop_front(),
                 }
                 if let Some(v) = msg {
-                    if let Err(e) =
-                        utils::msg::send_msg(&self.inner.ctx, &mut ins.conn, 1, None, None, Some(v))
-                            .await
-                    {
-                        log::error!("run_send send_msg err:{}", e);
+                    if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
+                        log::error!("run_send send_msgs err:{}", e);
                         /* if let Ok(mut lkv) = self.inner.waits.write() {
                             lkv.remove(&xids);
                         } */
@@ -153,24 +154,17 @@ impl NodeServer {
         }
     }
     async fn on_msg(&self, mut msg: utils::msg::Message) {
-        let ins = unsafe { self.inner.muts() };
         self.inner.ctmout.reset();
         match msg.control {
             0 => {
                 log::debug!("{} heart", self.inner.cfg.name.as_str());
-                if !self.inner.shuted {
-                    if let Err(e) = utils::msg::send_msg(
-                        &self.inner.ctx,
-                        &mut ins.conn,
-                        0,
-                        Some("heart".into()),
-                        None,
-                        None,
-                    )
-                    .await
-                    {
-                        log::error!("send_msg heart err:{}", e);
-                    }
+                if let Ok(mut lkv) = self.inner.msgs.lock() {
+                    lkv.push_back(Messages {
+                        control: 0,
+                        cmds: Some("heart".into()),
+                        heads: None,
+                        bodys: None,
+                    })
                 }
             }
             _ => {}
@@ -224,7 +218,12 @@ impl NodeServer {
                     }
                     return Err(ruisutil::ioerr("lock err", None));
                 }
-                Ok(mut lkv) => lkv.push_back(bds.into_boxed_slice()),
+                Ok(mut lkv) => lkv.push_back(Messages {
+                    control: 1,
+                    cmds: None,
+                    heads: None,
+                    bodys: Some(bds.into_boxed_slice()),
+                }),
             }
 
             let ctx = ruisutil::Context::with_timeout(

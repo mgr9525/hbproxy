@@ -1,4 +1,10 @@
-use std::{io, net::Shutdown, sync::Arc, time::Duration};
+use std::{
+    collections::LinkedList,
+    io,
+    net::Shutdown,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use async_std::{net::TcpStream, task};
 use futures::AsyncReadExt;
@@ -8,7 +14,7 @@ use crate::{
     app::Application,
     engine::proxyer::Proxyer,
     entity::node::{NodeConnMsg, RegNodeRep, RegNodeReq},
-    utils,
+    utils::{self, msg::Messages},
 };
 
 pub struct NodeClientCfg {
@@ -30,6 +36,7 @@ struct Inner {
     conntm: ruisutil::Timer,
     ctms: ruisutil::Timer,
     ctmout: ruisutil::Timer,
+    msgs: Mutex<LinkedList<Messages>>,
 }
 
 impl NodeClient {
@@ -43,6 +50,7 @@ impl NodeClient {
                 conntm: ruisutil::Timer::new(Duration::from_secs(2)),
                 ctms: ruisutil::Timer::new(Duration::from_secs(20)),
                 ctmout: ruisutil::Timer::new(Duration::from_secs(30)),
+                msgs: Mutex::new(LinkedList::new()),
             }),
         }
     }
@@ -58,6 +66,12 @@ impl NodeClient {
             while !c.inner.ctx.done() {
                 c.run_check().await;
                 task::sleep(Duration::from_millis(100)).await;
+            }
+        });
+        let c = self.clone();
+        task::spawn(async move {
+            while !c.inner.ctx.done() {
+                c.run_send().await;
             }
         });
         log::debug!("NodeClient run_recv start:{}", self.inner.cfg.name.as_str());
@@ -89,6 +103,31 @@ impl NodeClient {
                         // task::spawn(c.on_msg(v));
                         task::spawn(async move { c.on_msg(v).await });
                     }
+                }
+            } else {
+                task::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    async fn run_send(&self) {
+        let ins = unsafe { self.inner.muts() };
+        while !self.inner.ctx.done() {
+            if !self.inner.shuted {
+                let mut msg = None;
+                match self.inner.msgs.lock() {
+                    Err(e) => log::error!("run_send err:{}", e),
+                    Ok(mut lkv) => msg = lkv.pop_front(),
+                }
+                if let Some(v) = msg {
+                    if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
+                        log::error!("run_send send_msgs err:{}", e);
+                        /* if let Ok(mut lkv) = self.inner.waits.write() {
+                            lkv.remove(&xids);
+                        } */
+                        task::sleep(Duration::from_millis(10)).await;
+                    }
+                } else {
+                    task::sleep(Duration::from_millis(10)).await;
                 }
             } else {
                 task::sleep(Duration::from_millis(10)).await;
@@ -151,23 +190,15 @@ impl NodeClient {
                 );
                 self.close();
             }
-        }
-
-        if self.inner.ctms.tick() {
-            if !self.inner.shuted {
-                match utils::msg::send_msg(
-                    &self.inner.ctx,
-                    &mut ins.conn,
-                    0,
-                    Some("heart".into()),
-                    None,
-                    None,
-                )
-                .await
-                {
-                    Err(e) => log::error!("send_msg heart err:{}", e),
-                    Ok(_) => self.inner.ctmout.reset(),
-                };
+            if self.inner.ctms.tick() {
+                if let Ok(mut lkv) = self.inner.msgs.lock() {
+                    lkv.push_back(Messages {
+                        control: 0,
+                        cmds: Some("heart".into()),
+                        heads: None,
+                        bodys: None,
+                    })
+                }
             }
         }
     }

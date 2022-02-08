@@ -29,6 +29,12 @@ pub const MaxOther: u64 = 1024 * 1024 * 20; //20M
 pub const MaxHeads: u64 = 1024 * 1024 * 100; //100M
 pub const MaxBodys: u64 = 1024 * 1024 * 1024; //1G
 
+pub struct Messages {
+  pub control: i32,
+  pub cmds: Option<String>,
+  pub heads: Option<Box<[u8]>>,
+  pub bodys: Option<Box<[u8]>>,
+}
 pub struct Message {
     pub version: u16,
     pub control: i32,
@@ -147,13 +153,16 @@ pub async fn send_msg(
     Ok(())
 }
 
+pub async fn send_msgs(ctxs: &ruisutil::Context,conn: &mut TcpStream,msg:Messages) -> io::Result<()> {
+  send_msg(ctxs,conn,msg.control,msg.cmds,msg.heads,msg.bodys).await
+}
 pub async fn send_msg_buf(
     ctxs: &ruisutil::Context,
     conn: &mut TcpStream,
     ctrl: i32,
     cmds: Option<String>,
-    hds: Option<Arc<Box<[u8]>>>,
-    bds: Option<Arc<ByteBoxBuf>>,
+    hds: Option<Box<[u8]>>,
+    bds: Option<ByteBoxBuf>,
 ) -> io::Result<()> {
     let mut info = MsgInfo::new();
     let infoln = mem::size_of::<MsgInfo>();
