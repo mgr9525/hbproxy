@@ -2,6 +2,7 @@ mod client;
 mod node;
 mod nodes;
 mod proxy;
+mod proxyer;
 mod rule;
 
 pub use node::NodeServer;
