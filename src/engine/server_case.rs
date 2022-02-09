@@ -132,6 +132,10 @@ impl ServerCase {
         c.res_string(hbtp::ResCodeOk, "ok").await?;
         self.inner.node.put_conn(data, c.own_conn())
     }
+    pub async fn proxy_reload(&self, c: hbtp::Context) -> io::Result<()> {
+        self.inner.proxy.reload().await?;
+        c.res_string(hbtp::ResCodeOk, "ok").await
+    }
 
     pub async fn proxy_add(&self, c: hbtp::Context) -> io::Result<()> {
         let data: RuleConfReq = c.body_json()?;

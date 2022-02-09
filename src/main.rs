@@ -1,11 +1,11 @@
 #![feature(linked_list_cursors)]
 extern crate async_std;
-extern crate libc;
 extern crate clap;
 extern crate flexi_logger;
 extern crate futures;
 extern crate hbtp;
 extern crate hex;
+extern crate libc;
 extern crate log;
 extern crate once_cell;
 extern crate ruisutil;
@@ -53,6 +53,12 @@ fn main() {
                 .help("server key"),
         )
         /* .arg(
+            Arg::with_name("proxys-path")
+                .long("proxys-path")
+                .value_name("PATH")
+                .help("proxy config path"),
+        ) */
+        /* .arg(
             Arg::with_name("config")
                 .short("c")
                 .long("config")
@@ -96,6 +102,7 @@ fn main() {
         .subcommand(
             SubCommand::with_name("proxy")
                 .about("proxy command")
+                .subcommand(SubCommand::with_name("reload").about("reload proxy config file"))
                 .subcommand(
                     SubCommand::with_name("add")
                         .about("add new proxy rule")
@@ -108,8 +115,8 @@ fn main() {
                         .arg(
                             Arg::with_name("goto")
                                 .required(true)
-                                .value_name("GOTO")
-                                .help("proxy to(example:localhost:1081)"),
+                                .value_name("PROXY")
+                                .help("proxy to(example:xxx_node:1081)"),
                         )
                         .arg(
                             Arg::with_name("name")

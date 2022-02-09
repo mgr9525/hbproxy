@@ -79,7 +79,7 @@ async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("response err:{}", vs);
+                        log::error!("res err:{}", vs);
                     }
                 }
                 return -3;

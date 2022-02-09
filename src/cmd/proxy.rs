@@ -6,8 +6,10 @@ use crate::{
 };
 
 pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
-    if let Some(v) = args.subcommand_matches("add") {
-        adds(v).await - 1
+    if let Some(v) = args.subcommand_matches("reload") {
+        reloads(v).await
+    } else if let Some(v) = args.subcommand_matches("add") {
+        adds(v).await
     } else if let Some(v) = args.subcommand_matches("ls") {
         lss(v).await
     } else if let Some(v) = args.subcommand_matches("rm") {
@@ -17,6 +19,32 @@ pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     }
 }
 
+async fn reloads<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+    let mut req = Application::new_req(3, "ProxyReload");
+    match req.dors(None, None).await {
+        Err(e) => {
+            log::error!("request do err:{}", e);
+            return -2;
+        }
+        Ok(res) => {
+            if res.get_code() == hbtp::ResCodeOk {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        println!("reload:{}", vs);
+                    }
+                }
+            } else {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        log::error!("res err:{}", vs);
+                    }
+                }
+                return -3;
+            }
+        }
+    }
+    0
+}
 async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     let names = if let Some(vs) = args.value_of("name") {
         Some(vs.to_string())
@@ -97,7 +125,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("response err:{}", vs);
+                        log::error!("res err:{}", vs);
                     }
                 }
                 return -3;
@@ -145,7 +173,7 @@ async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("response err:{}", vs);
+                        log::error!("res err:{}", vs);
                     }
                 }
                 return -3;
@@ -179,7 +207,7 @@ async fn rms<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("response err:{}", vs);
+                        log::error!("res err:{}", vs);
                     }
                 }
                 return -3;
