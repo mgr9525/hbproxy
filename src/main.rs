@@ -1,16 +1,17 @@
 #![feature(linked_list_cursors)]
 extern crate async_std;
+extern crate libc;
 extern crate clap;
 extern crate flexi_logger;
 extern crate futures;
 extern crate hbtp;
 extern crate hex;
 extern crate log;
-extern crate xid;
 extern crate once_cell;
 extern crate ruisutil;
 extern crate serde;
 extern crate serde_json;
+extern crate xid;
 
 mod app;
 mod cmd;
@@ -116,7 +117,15 @@ fn main() {
                                 .help("proxy rule name"),
                         ),
                 )
-                .subcommand(SubCommand::with_name("ls").about("proxy list")),
+                .subcommand(SubCommand::with_name("ls").about("proxy list"))
+                .subcommand(
+                    SubCommand::with_name("rm").about("proxy remove").arg(
+                        Arg::with_name("name")
+                            .required(true)
+                            .value_name("NAME")
+                            .help("proxy name"),
+                    ),
+                ),
         )
         .get_matches();
 

@@ -10,6 +10,8 @@ pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         adds(v).await - 1
     } else if let Some(v) = args.subcommand_matches("ls") {
         lss(v).await
+    } else if let Some(v) = args.subcommand_matches("rm") {
+        rms(v).await
     } else {
         -2
     }
@@ -122,18 +124,57 @@ async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
                     }
                     Ok(v) => v,
                 };
-                println!("{:<30}{:^10}{:<25}", "Name", "Status", "Msg");
+                println!(
+                    "{:<30}{:<20}{:<20}{:^10}{:<25}",
+                    "Name", "Bind", "Proxy", "Status", "Msg"
+                );
                 for v in &data.list {
                     let msgs = match &v.msg {
                         None => "<nil>".to_string(),
                         Some(v) => v.clone(),
                     };
                     println!(
-                        "{:<30}{:^10}{:<25}",
+                        "{:<30}{:<20}{:<20}{:^10}{:<25}",
                         v.name.as_str(),
+                        v.remote.as_str(),
+                        v.proxy.as_str(),
                         v.status,
                         msgs.as_str()
                     );
+                }
+            } else {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        log::error!("response err:{}", vs);
+                    }
+                }
+                return -3;
+            }
+        }
+    }
+    0
+}
+
+async fn rms<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+    let names = if let Some(vs) = args.value_of("name") {
+        vs
+    } else {
+        println!("name is required");
+        return -1;
+    };
+    let mut req = Application::new_req(3, "ProxyRemove");
+    req.add_arg("name", names);
+    match req.dors(None, None).await {
+        Err(e) => {
+            log::error!("request do err:{}", e);
+            return -2;
+        }
+        Ok(res) => {
+            if res.get_code() == hbtp::ResCodeOk {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        println!("remove:{}", vs);
+                    }
                 }
             } else {
                 if let Some(bs) = res.get_bodys() {

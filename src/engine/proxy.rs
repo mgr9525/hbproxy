@@ -47,7 +47,12 @@ impl ProxyEngine {
         }
     }
     pub async fn add_proxy(&self, cfg: RuleCfg) -> io::Result<()> {
-        let proxy = RuleProxy::new(self.inner.ctx.clone(), self.clone(),self.inner.node.clone(), cfg);
+        let proxy = RuleProxy::new(
+            self.inner.ctx.clone(),
+            self.clone(),
+            self.inner.node.clone(),
+            cfg,
+        );
         proxy.start().await?;
         if let Ok(mut lkv) = self.inner.proxys.write() {
             lkv.push_back(proxy);
@@ -66,6 +71,8 @@ impl ProxyEngine {
                     // v.conf().name
                     rts.list.push(crate::entity::proxy::ProxyListIt {
                         name: v.conf().name.clone(),
+                        remote: format!("{}:{}", v.conf().bind_host.as_str(), v.conf().bind_port),
+                        proxy: format!("{}:{}", v.conf().proxy_host.as_str(), v.conf().proxy_port),
                         status: v.status(),
                         msg: v.msg(),
                     });
@@ -74,14 +81,14 @@ impl ProxyEngine {
         };
         Ok(rts)
     }
-    pub fn remove(&self, name: String) -> io::Result<()> {
+    pub fn remove(&self, name: &String) -> io::Result<()> {
         if let Ok(mut lkv) = self.inner.proxys.write() {
             let mut cursor = lkv.cursor_front_mut();
             loop {
                 match cursor.current() {
                     None => break,
                     Some(v) => {
-                        if v.conf().name == name {
+                        if v.conf().name.eq(name) {
                             v.stop();
                             cursor.remove_current();
                             log::debug!("proxy remove:{}!!!!", name.as_str());

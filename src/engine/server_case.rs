@@ -139,7 +139,7 @@ impl ServerCase {
         }
         let cfg = RuleCfg {
             name: match &data.name {
-                None => format!("b{}_{}", data.bind_port, ruisutil::random(5).as_str()),
+                None => format!("b{}{}", data.bind_port, ruisutil::random(5).as_str()),
                 Some(vs) => vs.clone(),
             },
             bind_host: data.bind_host.clone(),
@@ -167,7 +167,7 @@ impl ServerCase {
         } else {
             return c.res_string(hbtp::ResCodeOk, "param name err").await;
         };
-        self.inner.proxy.remove(nms)?;
+        self.inner.proxy.remove(&nms)?;
         c.res_string(hbtp::ResCodeOk, "ok").await
     }
 }

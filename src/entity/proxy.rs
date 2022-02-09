@@ -12,6 +12,8 @@ pub struct RuleConfReq {
 #[derive(Serialize, Deserialize)]
 pub struct ProxyListIt {
     pub name: String,
+    pub remote:String,
+    pub proxy:String,
     pub status: i32,
     pub msg:Option<String>,
 }

@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, LinkedList},
     io,
     net::Shutdown,
+    os::unix::prelude::AsRawFd,
     sync::{Arc, RwLock},
     time::Duration,
 };
@@ -17,7 +18,7 @@ use ruisutil::{
     ArcMut,
 };
 
-use super::{NodeEngine, NodeServer, ProxyEngine, proxyer::Proxyer};
+use super::{proxyer::Proxyer, NodeEngine, NodeServer, ProxyEngine};
 
 pub struct RuleCfg {
     pub name: String,
@@ -69,8 +70,12 @@ impl RuleProxy {
         Ok(())
     }
     pub fn stop(&self) {
-        unsafe { self.inner.muts().lsr = None };
+        //unsafe { self.inner.muts().lsr = None };
         self.inner.ctx.done();
+        if let Some(lsr) = &self.inner.lsr {
+            let fd = lsr.as_raw_fd();
+            unsafe { libc::shutdown(fd, libc::SHUT_RD) };
+        }
     }
     pub async fn run(&self) -> io::Result<()> {
         let ins = unsafe { self.inner.muts() };
@@ -84,16 +89,18 @@ impl RuleProxy {
             while !self.inner.ctx.done() {
                 match incom.next().await {
                     None => break,
-                    Some(v) => {
-                        if let Ok(conn) = v {
+                    Some(v) => match v {
+                        Ok(conn) => {
                             let c = self.clone();
                             task::spawn(async move {
                                 c.run_cli(conn).await;
                             });
-                        } else {
-                            println!("stream conn err!!!!")
                         }
-                    }
+                        Err(e) => {
+                            println!("stream conn err:{}!!!!", e);
+                            break;
+                        }
+                    },
                 }
             }
         }
@@ -103,20 +110,29 @@ impl RuleProxy {
             self.inner.cfg.bind_port
         );
         self.stop();
+        self.inner.egn.remove(&self.inner.cfg.name);
         Ok(())
     }
     async fn run_cli(&self, conn: TcpStream) {
         match self.inner.node.find_node(&self.inner.cfg.proxy_host) {
             Err(e) => log::error!("{} proxy err:{}", self.inner.cfg.proxy_host.as_str(), e),
             Ok(v) => {
-              let connlc = match v.wait_conn(self.inner.cfg.proxy_port).await {
-                  Ok(v) => v,
-                  Err(e) => {
-                      log::error!("run_cli wait_conn err:{}", e);
-                      return;
-                  }
-              };
-              let px=Proxyer::new(self.inner.ctx.clone(),format!("{}:{}",self.inner.cfg.proxy_host,self.inner.cfg.proxy_port),conn,connlc);
+                let connlc = match v.wait_conn(self.inner.cfg.proxy_port).await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("run_cli wait_conn err:{}", e);
+                        return;
+                    }
+                };
+                let px = Proxyer::new(
+                    self.inner.ctx.clone(),
+                    format!(
+                        "{}:{}",
+                        self.inner.cfg.proxy_host, self.inner.cfg.proxy_port
+                    ),
+                    conn,
+                    connlc,
+                );
                 /* let px = Proxyer::new(
                     self.inner.ctx.clone(),
                     self.clone(),
