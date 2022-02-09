@@ -79,8 +79,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         },
         proxy_port: gotoport,
     };
-    let mut req = Application::new_req(3);
-    req.command("ProxyAdd");
+    let mut req = Application::new_req(3, "ProxyAdd");
     match req.do_json(None, &data).await {
         Err(e) => {
             log::error!("request do err:{}", e);
@@ -107,8 +106,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
 }
 
 async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
-    let mut req = Application::new_req(3);
-    req.command("ProxyList");
+    let mut req = Application::new_req(3, "ProxyList");
     match req.dors(None, None).await {
         Err(e) => {
             log::error!("request do err:{}", e);

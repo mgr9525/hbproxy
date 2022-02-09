@@ -732,6 +732,8 @@ name = "ruisutil"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "chrono",
+ "md5",
  "rand",
 ]
 

@@ -18,9 +18,7 @@ use crate::{
 };
 
 pub struct NodeClientCfg {
-    pub addr: String,
     pub name: String,
-    pub key: Option<String>,
     pub token: Option<String>,
 }
 #[derive(Clone)]
@@ -93,12 +91,12 @@ impl NodeClient {
                         Err(e) => {
                             log::error!(
                                 "NodeClient({}) parse_msg err:{:?}",
-                                self.inner.cfg.addr.as_str(),
+                                self.inner.cfg.name.as_str(),
                                 e
                             );
                             // self.stop();
                             self.close();
-                            log::debug!("NodeClient({}) close!!", self.inner.cfg.addr.as_str());
+                            log::debug!("NodeClient({}) close!!", self.inner.cfg.name.as_str());
                             task::sleep(Duration::from_millis(100)).await;
                         }
                         Ok(v) => {
@@ -141,12 +139,8 @@ impl NodeClient {
         }
     }
     async fn reconn(&self) {
-        log::debug!("NodeClient reconn start:{}", self.inner.cfg.addr.as_str());
-        let mut req = hbtp::Request::new(self.inner.cfg.addr.as_str(), 2);
-        req.command("NodeJoin");
-        if let Some(vs) = &self.inner.cfg.key {
-            req.add_arg("node_key", vs.as_str());
-        }
+        log::debug!("NodeClient reconn start:{}", self.inner.cfg.name.as_str());
+        let mut req = Application::new_req(2,"NodeJoin");
         let data = RegNodeReq {
             name: self.inner.cfg.name.clone(),
             token: self.inner.cfg.token.clone(),
@@ -158,6 +152,11 @@ impl NodeClient {
             Ok(mut res) => {
                 if res.get_code() == utils::HbtpTokenErr {
                     log::error!("已存在相同名称的节点");
+                    Application::context().stop();
+                    return;
+                }
+                if res.get_code() == hbtp::ResCodeAuth {
+                    log::error!("授权失败,请检查key是否正确");
                     Application::context().stop();
                     return;
                 }
@@ -193,7 +192,7 @@ impl NodeClient {
             if self.inner.ctmout.tick() {
                 log::debug!(
                     "NodeClient({}) timeout->close!!",
-                    self.inner.cfg.addr.as_str()
+                    self.inner.cfg.name.as_str()
                 );
                 self.close();
             }
@@ -229,8 +228,7 @@ impl NodeClient {
         }
     }
     async fn new_conn(&self, data: NodeConnMsg) {
-        let mut req = Application::new_req(2);
-        req.command("NodeConn");
+        let mut req = Application::new_req(2,"NodeConn");
         match req.do_json(None, &data).await {
             Err(e) => {
                 log::error!("new_conn request do err:{}", e);

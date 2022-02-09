@@ -30,16 +30,13 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         Ok(v) => log::info!("remote [{}] version:{}", addrs, v.as_str()),
     };
 
-    let mut cfg = engine::NodeClientCfg {
-        addr: addrs.clone(),
-        key: None,
-        name: names.into(),
-        token: None,
-    };
-    if let Some(vs) = &Application::get().keys {
-        cfg.key = Some(vs.into());
-    }
-    let cli = engine::NodeClient::new(Application::context(), cfg);
+    let cli = engine::NodeClient::new(
+        Application::context(),
+        engine::NodeClientCfg {
+            name: names.into(),
+            token: None,
+        },
+    );
     match cli.start().await {
         Err(e) => {
             log::error!("client run err:{}", e);
@@ -50,8 +47,7 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
 }
 
 async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
-    let mut req = Application::new_req(2);
-    req.command("NodeList");
+    let mut req = Application::new_req(2,"NodeList");
     match req.dors(None, None).await {
         Err(e) => {
             log::error!("request do err:{}", e);

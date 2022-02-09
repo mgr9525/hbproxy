@@ -9,7 +9,7 @@ use async_std::task;
 use crate::{
     engine::{NodeEngine, NodeServer, NodeServerCfg, ProxyEngine, RuleCfg},
     entity::{
-        node::{NodeListRep, RegNodeRep, RegNodeReq, NodeConnMsg},
+        node::{NodeConnMsg, NodeListRep, RegNodeRep, RegNodeReq},
         proxy::RuleConfReq,
     },
     utils,
@@ -52,10 +52,31 @@ impl ServerCase {
                 if vs.is_empty() {
                     return true;
                 }
-                if let Some(key) = c.get_arg("node_key") {
-                    if vs.eq(&key) {
-                        return true;
-                    }
+                let tms = match c.get_arg("times") {
+                    None => return false,
+                    Some(v) => v,
+                };
+                let rands = match c.get_arg("random") {
+                    None => return false,
+                    Some(v) => v,
+                };
+                let signs = match c.get_arg("sign") {
+                    None => return false,
+                    Some(v) => v,
+                };
+                if tms.is_empty() || rands.is_empty() || signs.is_empty() {
+                    return false;
+                }
+                // println!("tms:{},rands:{},signs:{}",tms,rands,signs);
+                let sign = ruisutil::md5str(format!(
+                    "{}{}{}{}",
+                    c.command(),
+                    tms.as_str(),
+                    rands.as_str(),
+                    vs.as_str()
+                ));
+                if sign.eq(&signs) {
+                    return true;
                 }
             }
         };
@@ -99,7 +120,7 @@ impl ServerCase {
     pub async fn node_conn(&self, c: hbtp::Context) -> io::Result<()> {
         let data: NodeConnMsg = c.body_json()?;
         c.res_string(hbtp::ResCodeOk, "ok").await?;
-        self.inner.node.put_conn(data,c.own_conn())
+        self.inner.node.put_conn(data, c.own_conn())
     }
 
     pub async fn proxy_add(&self, c: hbtp::Context) -> io::Result<()> {

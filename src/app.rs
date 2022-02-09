@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use once_cell::sync::OnceCell;
 
 use crate::utils;
@@ -62,11 +64,23 @@ impl Application {
         Self::get().ctx.clone()
     }
 
-    pub fn new_req(ctrl:i32) -> hbtp::Request {
-      let mut req = hbtp::Request::new(Self::get().addrs.as_str(), ctrl);
-      if let Some(vs) = &Self::get().keys {
-          req.add_arg("node_key", vs.as_str());
-      }
-      req
+    pub fn new_req(ctrl: i32, cmds: &str) -> hbtp::Request {
+        let mut req = hbtp::Request::new(Self::get().addrs.as_str(), ctrl);
+        req.command(cmds);
+        if let Some(vs) = &Self::get().keys {
+            let tms = ruisutil::strftime(SystemTime::now(), "%+");
+            let rands = ruisutil::random(20);
+            let sign = ruisutil::md5str(format!(
+                "{}{}{}{}",
+                cmds,
+                tms.as_str(),
+                rands.as_str(),
+                vs.as_str()
+            ));
+            req.add_arg("times", tms.as_str());
+            req.add_arg("random", rands.as_str());
+            req.add_arg("sign", sign.as_str());
+        }
+        req
     }
 }
