@@ -84,7 +84,7 @@ impl ProxyEngine {
             if dpth.is_file() {
                 match self.load_conf(&dpth).await {
                     Err(e) => log::error!("load conf({}) faild:{}", dpths, e),
-                    Ok(_) => log::error!("load conf({}) success", dpths),
+                    Ok(_) => log::info!("load conf({}) success", dpths),
                 }
             }
         }
