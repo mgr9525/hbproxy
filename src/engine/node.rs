@@ -114,11 +114,11 @@ impl NodeServer {
                         let c = self.clone();
                         // task::spawn(c.on_msg(v));
                         task::spawn(async move { c.on_msg(v).await });
+                        continue;
                     }
                 }
-            } else {
-                task::sleep(Duration::from_millis(10)).await;
             }
+            task::sleep(Duration::from_millis(10)).await;
         }
     }
     async fn run_send(&self) {
@@ -136,14 +136,12 @@ impl NodeServer {
                         /* if let Ok(mut lkv) = self.inner.waits.write() {
                             lkv.remove(&xids);
                         } */
-                        task::sleep(Duration::from_millis(10)).await;
+                    } else {
+                        continue;
                     }
-                } else {
-                    task::sleep(Duration::from_millis(10)).await;
                 }
-            } else {
-                task::sleep(Duration::from_millis(10)).await;
             }
+            task::sleep(Duration::from_millis(10)).await;
         }
     }
     async fn run_check(&self) {
