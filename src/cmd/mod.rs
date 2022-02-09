@@ -6,7 +6,7 @@ use std::io;
 
 use crate::{
     app::{self, Application},
-    case, engine,
+    engine,
     entity::node::{RegNodeRep, RegNodeReq},
     utils,
 };
@@ -23,10 +23,9 @@ pub async fn cmds() -> i32 {
         server::runs(v).await
     } else if let Some(v) = Application::get().cmdargs.subcommand_matches("node") {
         node::runs(v).await
-      } else if let Some(v) = Application::get().cmdargs.subcommand_matches("proxy") {
+    } else if let Some(v) = Application::get().cmdargs.subcommand_matches("proxy") {
         proxy::runs(v).await
     } else {
         -2
     }
 }
-

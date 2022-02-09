@@ -8,7 +8,6 @@ use std::{
 use async_std::{net::TcpStream, task};
 
 use crate::{
-    case::ServerCase,
     entity::node::NodeConnMsg,
     utils::{self, msg::Messages},
 };

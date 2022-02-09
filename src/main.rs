@@ -13,7 +13,6 @@ extern crate serde;
 extern crate serde_json;
 
 mod app;
-mod case;
 mod cmd;
 mod engine;
 mod entity;

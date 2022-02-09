@@ -13,7 +13,7 @@ pub struct Application {
     pub addrs: String,
     pub keys: Option<String>,
 
-    pub server_case: Option<crate::case::ServerCase>,
+    pub server_case: Option<crate::engine::ServerCase>,
 }
 impl Application {
     pub fn init(workpath: String, args: clap::ArgMatches<'static>) -> bool {
