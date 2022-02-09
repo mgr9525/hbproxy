@@ -8,7 +8,7 @@ pub struct ServerConf {
 #[derive(Serialize, Deserialize)]
 pub struct ServerInfoConf {
     // #[serde(rename = "name")]
-    pub bind: Option<String>,
+    pub host: Option<String>,
     pub key: Option<String>,
     pub log_path: Option<String>,
     pub proxys_path: Option<String>,

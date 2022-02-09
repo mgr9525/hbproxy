@@ -140,7 +140,7 @@ impl NodeClient {
     }
     async fn reconn(&self) {
         log::debug!("NodeClient reconn start:{}", self.inner.cfg.name.as_str());
-        let mut req = Application::new_req(2,"NodeJoin");
+        let mut req = Application::new_req(2, "NodeJoin");
         let data = RegNodeReq {
             name: self.inner.cfg.name.clone(),
             token: self.inner.cfg.token.clone(),
@@ -152,11 +152,13 @@ impl NodeClient {
             Ok(mut res) => {
                 if res.get_code() == utils::HbtpTokenErr {
                     log::error!("已存在相同名称的节点");
+                    task::sleep(Duration::from_secs(1)).await;
                     Application::context().stop();
                     return;
                 }
                 if res.get_code() == hbtp::ResCodeAuth {
                     log::error!("授权失败,请检查key是否正确");
+                    task::sleep(Duration::from_secs(1)).await;
                     Application::context().stop();
                     return;
                 }
@@ -228,7 +230,7 @@ impl NodeClient {
         }
     }
     async fn new_conn(&self, data: NodeConnMsg) {
-        let mut req = Application::new_req(2,"NodeConn");
+        let mut req = Application::new_req(2, "NodeConn");
         match req.do_json(None, &data).await {
             Err(e) => {
                 log::error!("new_conn request do err:{}", e);

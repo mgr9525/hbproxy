@@ -23,6 +23,7 @@ mod utils;
 use std::io;
 
 use clap::{App, Arg, SubCommand};
+use flexi_logger::Duplicate;
 
 use crate::app::Application;
 
@@ -147,16 +148,17 @@ fn main() {
                 Ok(v) => Some(v),
             },
         };
-    let mut dup = flexi_logger::Duplicate::Info;
+    let mut dup = Duplicate::Info;
     let logs = if matches.is_present("debug") {
-        dup = flexi_logger::Duplicate::Debug;
+        dup = Duplicate::Debug;
         "debug"
     } else {
         "info"
     };
     let mut loger = flexi_logger::Logger::try_with_str(logs)
         .unwrap()
-        .duplicate_to_stderr(dup)
+        .duplicate_to_stderr(Duplicate::Warn)
+        .duplicate_to_stdout(dup)
         .write_mode(flexi_logger::WriteMode::BufferAndFlush);
     if let Some(cfg) = &conf {
         if let Some(vs) = &cfg.server.log_path {

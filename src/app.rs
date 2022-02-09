@@ -23,7 +23,7 @@ impl Application {
     ) -> bool {
         let addr_confs = match &conf {
             None => None,
-            Some(v) => match &v.server.bind {
+            Some(v) => match &v.server.host {
                 None => None,
                 Some(v) => Some(v.clone()),
             },
