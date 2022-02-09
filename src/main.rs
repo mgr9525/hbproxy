@@ -11,6 +11,7 @@ extern crate once_cell;
 extern crate ruisutil;
 extern crate serde;
 extern crate serde_json;
+extern crate serde_yaml;
 extern crate xid;
 
 mod app;
@@ -32,10 +33,10 @@ fn main() {
         .about("Does awesome things")
         .arg(Arg::with_name("debug").long("debug").hidden(true))
         .arg(
-            Arg::with_name("workpath")
-                .short("w")
-                .long("work")
-                .help("process work path.(def:$HOME/.$(name))"),
+            Arg::with_name("conf")
+                .short("c")
+                .long("conf")
+                .help("yml config file(def:/etc/hbproxy/hbproxy.yml)"),
         )
         .arg(
             Arg::with_name("addr")
@@ -135,8 +136,6 @@ fn main() {
         "debug"
     } else {
         "info"
-        // dup = flexi_logger::Duplicate::Debug;
-        // "debug"
     };
     let loger = flexi_logger::Logger::try_with_str(logs)
         .unwrap()

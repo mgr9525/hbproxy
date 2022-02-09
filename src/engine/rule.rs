@@ -74,7 +74,9 @@ impl RuleProxy {
         self.inner.ctx.done();
         if let Some(lsr) = &self.inner.lsr {
             let fd = lsr.as_raw_fd();
-            unsafe { libc::shutdown(fd, libc::SHUT_RD) };
+            if fd != 0 {
+                unsafe { libc::shutdown(fd, libc::SHUT_RD) };
+            }
         }
     }
     pub async fn run(&self) -> io::Result<()> {

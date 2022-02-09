@@ -1,12 +1,20 @@
 use std::{
     collections::{HashMap, LinkedList},
     io,
+    path::Path,
     sync::RwLock,
 };
 
 use ruisutil::ArcMut;
 
-use crate::entity::proxy::ProxyListRep;
+use crate::{
+    app::Application,
+    entity::{
+        conf::ProxyInfoConf,
+        proxy::{ProxyListRep, RuleConfReq},
+    },
+    utils,
+};
 
 use super::{rule::RuleProxy, NodeEngine, RuleCfg};
 
@@ -29,6 +37,115 @@ impl ProxyEngine {
                 proxys: RwLock::new(LinkedList::new()),
             }),
         }
+    }
+
+    pub async fn reload(&self) -> io::Result<()> {
+        let path = match &Application::get().conf {
+            None => return Err(ruisutil::ioerr("not found proxys path", None)),
+            Some(v) => match &v.server.proxys_path {
+                None => "/etc/hbproxy/proxys".to_string(),
+                Some(v) => v.clone(),
+            },
+        };
+        let pth = Path::new(path.as_str());
+        if !pth.exists() || !pth.is_dir() {
+            return Err(ruisutil::ioerr(
+                format!(
+                    "proxys path ({}) not exists",
+                    match pth.to_str() {
+                        None => "xxx",
+                        Some(vs) => vs,
+                    }
+                ),
+                None,
+            ));
+        }
+        if let Ok(mut lkv) = self.inner.proxys.write() {
+            let mut cursor = lkv.cursor_front_mut();
+            loop {
+                match cursor.current() {
+                    None => break,
+                    Some(v) => {
+                        v.stop();
+                        cursor.remove_current();
+                    }
+                }
+                cursor.move_next()
+            }
+        }
+        for e in std::fs::read_dir(pth)? {
+            let dir = e?;
+            let dpth = dir.path();
+            let dpths = if let Some(vs) = dpth.to_str() {
+                vs
+            } else {
+                "xxx"
+            };
+            if dpth.is_file() {
+                match self.load_conf(&dpth).await {
+                    Err(e) => log::error!("load conf({}) faild:{}", dpths, e),
+                    Ok(_) => log::error!("load conf({}) success", dpths),
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn load_conf(&self, dpth: &Path) -> io::Result<()> {
+        let cfg: ProxyInfoConf = match utils::ymlfile(&dpth) {
+            Err(e) => return Err(ruisutil::ioerr(format!("ymlfile err:{}", e), None)),
+            Ok(v) => v,
+        };
+        let bindls: Vec<&str> = cfg.bind.split(":").collect();
+        if bindls.len() != 2 {
+            return Err(ruisutil::ioerr("bind len err", None));
+        }
+        let bindport = if let Ok(v) = bindls[1].parse::<i32>() {
+            if v <= 0 {
+                return Err(ruisutil::ioerr("bind port err:<=0", None));
+            }
+            v
+        } else {
+            return Err(ruisutil::ioerr("bind port err", None));
+        };
+        let gotols: Vec<&str> = cfg.proxy.split(":").collect();
+        if gotols.len() != 2 {
+            return Err(ruisutil::ioerr("goto len err", None));
+        }
+        let gotoport = if let Ok(v) = gotols[1].parse::<i32>() {
+            if v <= 0 {
+                return Err(ruisutil::ioerr("goto port err:<=0", None));
+            }
+            v
+        } else {
+            return Err(ruisutil::ioerr("goto port err", None));
+        };
+        let data = RuleCfg {
+            name: match &cfg.name {
+                None => format!("b{}{}", bindport, ruisutil::random(5).as_str()),
+                Some(vs) => vs.clone(),
+            },
+            bind_host: if bindls[0].is_empty() {
+                "0.0.0.0".to_string()
+            } else {
+                bindls[0].to_string()
+            },
+            bind_port: bindport,
+            proxy_host: if gotols[0].is_empty() {
+                "localhost".to_string()
+            } else {
+                gotols[0].to_string()
+            },
+            proxy_port: gotoport,
+        };
+        match self.add_check(&data) {
+            0 => {}
+            1 => return Err(ruisutil::ioerr("proxy name is exsit", None)),
+            2 => return Err(ruisutil::ioerr("proxy port is exsit", None)),
+            _ => return Err(ruisutil::ioerr("add check err", None)),
+        }
+        self.add_proxy(data).await
     }
 
     pub fn add_check(&self, cfg: &RuleCfg) -> i8 {
@@ -94,9 +211,9 @@ impl ProxyEngine {
                             log::debug!("proxy remove:{}!!!!", name.as_str());
                             return Ok(());
                         }
-                        cursor.move_next();
                     }
                 }
+                cursor.move_next();
             }
         }
         Err(ruisutil::ioerr("lock err", None))

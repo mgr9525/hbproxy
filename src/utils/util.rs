@@ -1,4 +1,6 @@
-use std::{env, io};
+use std::{env, io, path::Path};
+
+use serde::de::DeserializeOwned;
 
 pub async fn remote_version(addrs: &str) -> io::Result<String> {
     let mut req = hbtp::Request::new(addrs, 1);
@@ -28,4 +30,12 @@ pub fn envs(key: &str, defs: &str) -> String {
             }
         }
     }
+}
+
+pub fn ymlfile<T: DeserializeOwned, P: AsRef<Path>>(path: P) -> io::Result<T> {
+  let v = std::fs::read_to_string(path)?;
+  match serde_yaml::from_str(v.as_str()) {
+      Err(e) => Err(ruisutil::ioerr(format!("yml err:{}", e), None)),
+      Ok(v) => Ok(v),
+  }
 }

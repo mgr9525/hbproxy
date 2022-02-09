@@ -12,6 +12,7 @@ pub struct Application {
     pub id: String,
     pub workpath: String,
     pub cmdargs: clap::ArgMatches<'static>,
+    pub conf: Option<crate::entity::conf::ServerConf>,
     pub addrs: String,
     pub keys: Option<String>,
 
@@ -19,20 +20,50 @@ pub struct Application {
 }
 impl Application {
     pub fn init(workpath: String, args: clap::ArgMatches<'static>) -> bool {
+        let conf: Option<crate::entity::conf::ServerConf> =
+            match std::fs::read_to_string(match args.value_of("conf") {
+                Some(v) => v.to_string(),
+                None => utils::envs("HBPROXY_CONF", "/etc/hbproxy/hbproxy.yml"),
+            }) {
+                Err(e) => None,
+                Ok(v) => match serde_yaml::from_str(v.as_str()) {
+                    Err(e) => None,
+                    Ok(v) => Some(v),
+                },
+            };
+        let addr_confs = match &conf {
+            None => None,
+            Some(v) => match &v.server.bind {
+                None => None,
+                Some(v) => Some(v.clone()),
+            },
+        };
+        let key_confs = match &conf {
+            None => None,
+            Some(v) => match &v.server.key {
+                None => None,
+                Some(v) => Some(v.clone()),
+            },
+        };
         let app = Self {
             ctx: ruisutil::Context::background(None),
             id: String::new(),
             workpath: workpath,
+            conf: conf,
             addrs: if let Some(vs) = args.value_of("addr") {
                 vs.to_string()
+            } else if let Some(vs) = addr_confs {
+                vs
             } else {
                 utils::envs("HBPROXY_ADDR", "0.0.0.0:6573")
             },
             keys: if let Some(vs) = args.value_of("key") {
                 // req.add_arg("node_key", vs);
                 Some(vs.to_string())
-            } else if let Ok(vs) = std::env::var("HBPROXY_KEY") {
+            } else if let Some(vs) = key_confs {
                 // req.add_arg("node_key", vs.as_str());
+                Some(vs)
+            } else if let Ok(vs) = std::env::var("HBPROXY_KEY") {
                 Some(vs)
             } else {
                 None

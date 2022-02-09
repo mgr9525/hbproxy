@@ -4,4 +4,4 @@ export RUST_BACKTRACE=1
 cargo build
 
 # target/debug/hbproxy --debug server
-target/debug/hbproxy --debug -k 123456 server
+target/debug/hbproxy --debug server

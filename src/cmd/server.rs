@@ -13,6 +13,7 @@ pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             node_key: Application::get().keys.clone(),
         },
     );
+    cs.start().await;
     Application::get_mut().server_case = Some(cs);
     let serv = hbtp::Engine::new(Some(Application::context()), addrs.as_str());
     serv.reg_fun(1, handle1);

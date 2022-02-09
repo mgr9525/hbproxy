@@ -45,6 +45,16 @@ impl ServerCase {
         }
     }
 
+    pub async fn start(&self) {
+        let c = self.clone();
+        task::spawn(async move {
+            match c.inner.proxy.reload().await {
+                Err(e) => log::error!("proxy init reload err:{}", e),
+                Ok(_) => log::info!("proxy init reload ok"),
+            }
+        });
+    }
+
     pub fn authed(&self, c: &hbtp::Context) -> bool {
         match &self.inner.conf.node_key {
             None => return true,
@@ -151,7 +161,7 @@ impl ServerCase {
             0 => {}
             1 => return c.res_string(hbtp::ResCodeErr, "proxy name is exsit").await,
             2 => return c.res_string(hbtp::ResCodeErr, "proxy port is exsit").await,
-            _ => return c.res_string(hbtp::ResCodeErr, "check err").await,
+            _ => return c.res_string(hbtp::ResCodeErr, "add check err").await,
         }
         let nms = cfg.name.clone();
         self.inner.proxy.add_proxy(cfg).await?;
