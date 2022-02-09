@@ -50,54 +50,54 @@ impl Proxyer {
         self.inner.connlc.shutdown(Shutdown::Both);
     }
     pub async fn start(self) {
-        log::info!("Proxyer({}) start", self.inner.ids.as_str());
+        log::debug!("Proxyer({}) start", self.inner.ids.as_str());
         let wg = ruisutil::WaitGroup::new();
         let c = self.clone();
         let wgc = wg.clone();
         task::spawn(async move {
             if let Err(e) = c.read1().await {
-                log::error!("Proxyer({}) read1 err:{}", c.inner.ids.as_str(), e);
+                log::warn!("Proxyer({}) read1 err:{}", c.inner.ids.as_str(), e);
             }
             // c.closer();
             unsafe { c.inner.muts().endr1 = true };
             std::mem::drop(wgc);
-            log::info!("Proxyer({}) read1 end!", c.inner.ids.as_str());
+            log::debug!("Proxyer({}) read1 end!", c.inner.ids.as_str());
         });
         let c = self.clone();
         let wgc = wg.clone();
         task::spawn(async move {
             if let Err(e) = c.write1().await {
-                log::error!("Proxyer({}) write1 err:{}", c.inner.ids.as_str(), e);
+                log::warn!("Proxyer({}) write1 err:{}", c.inner.ids.as_str(), e);
             }
             c.closer();
             std::mem::drop(wgc);
-            log::info!("Proxyer({}) write1 end!", c.inner.ids.as_str());
+            log::debug!("Proxyer({}) write1 end!", c.inner.ids.as_str());
         });
         let c = self.clone();
         let wgc = wg.clone();
         task::spawn(async move {
             if let Err(e) = c.read2().await {
-                log::error!("Proxyer({}) read2 err:{}", c.inner.ids.as_str(), e);
+                log::warn!("Proxyer({}) read2 err:{}", c.inner.ids.as_str(), e);
             }
             // c.closer();
             unsafe { c.inner.muts().endr2 = true };
             std::mem::drop(wgc);
-            log::info!("Proxyer({}) read2 end!", c.inner.ids.as_str());
+            log::debug!("Proxyer({}) read2 end!", c.inner.ids.as_str());
         });
         let c = self.clone();
         let wgc = wg.clone();
         task::spawn(async move {
             if let Err(e) = c.write2().await {
-                log::error!("Proxyer({}) write2 err:{}", c.inner.ids.as_str(), e);
+                log::warn!("Proxyer({}) write2 err:{}", c.inner.ids.as_str(), e);
             }
             c.closelcr();
             std::mem::drop(wgc);
-            log::info!("Proxyer({}) write2 end!", c.inner.ids.as_str());
+            log::debug!("Proxyer({}) write2 end!", c.inner.ids.as_str());
         });
 
         wg.waits().await;
         self.stop();
-        log::info!("Proxyer({}) end", self.inner.ids.as_str());
+        log::debug!("Proxyer({}) end", self.inner.ids.as_str());
     }
     pub async fn read1(&self) -> io::Result<()> {
         let ins = unsafe { self.inner.muts() };
