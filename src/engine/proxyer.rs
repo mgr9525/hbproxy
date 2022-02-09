@@ -95,7 +95,7 @@ impl Proxyer {
             log::info!("Proxyer({}) write2 end!", c.inner.ids.as_str());
         });
 
-        wg.wait();
+        wg.waits().await;
         self.stop();
         log::info!("Proxyer({}) end", self.inner.ids.as_str());
     }

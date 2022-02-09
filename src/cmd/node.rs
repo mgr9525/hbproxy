@@ -25,7 +25,7 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     match utils::remote_version(addrs.as_str()).await {
         Err(e) => {
             log::error!("remote [{}] version err:{}", addrs, e);
-            return -1;
+            // return -1;
         }
         Ok(v) => log::info!("remote [{}] version:{}", addrs, v.as_str()),
     };
@@ -34,54 +34,18 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         addr: addrs.clone(),
         key: None,
         name: names.into(),
-        token: String::new(),
-    };
-
-    let mut req = hbtp::Request::new(addrs.as_str(), 2);
-    req.command("NodeJoin");
-    if let Some(vs) = &Application::get().keys {
-        req.add_arg("node_key", vs.as_str());
-        cfg.key = Some(vs.into());
-    }
-    let data = RegNodeReq {
-        name: cfg.name.clone(),
         token: None,
     };
-    match req.do_json(None, &data).await {
+    if let Some(vs) = &Application::get().keys {
+        cfg.key = Some(vs.into());
+    }
+    let cli = engine::NodeClient::new(Application::context(), cfg);
+    match cli.start().await {
         Err(e) => {
-            log::error!("request do err:{}", e);
-            -2
+            log::error!("client run err:{}", e);
+            -3
         }
-        Ok(mut res) => {
-            if res.get_code() == utils::HbtpTokenErr {
-                log::error!("已存在相同名称的节点");
-            }
-            if res.get_code() == hbtp::ResCodeOk {
-                let data: RegNodeRep = match res.body_json() {
-                    Err(e) => {
-                        log::error!("response body err:{}", e);
-                        return -3;
-                    }
-                    Ok(v) => v,
-                };
-                cfg.token = data.token.clone();
-                let cli = engine::NodeClient::new(Application::context(), res.own_conn(), cfg);
-                match cli.start().await {
-                    Err(e) => {
-                        log::error!("client run err:{}", e);
-                        -3
-                    }
-                    Ok(_) => 0,
-                }
-            } else {
-                if let Some(bs) = res.get_bodys() {
-                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("response err:{}", vs);
-                    }
-                }
-                -4
-            }
-        }
+        Ok(_) => 0,
     }
 }
 
