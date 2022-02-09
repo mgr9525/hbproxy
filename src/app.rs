@@ -9,8 +9,6 @@ static mut APPONE: OnceCell<Application> = OnceCell::new();
 pub const VERSION: &str = "1.0.0";
 pub struct Application {
     ctx: ruisutil::Context,
-    pub id: String,
-    pub workpath: String,
     pub cmdargs: clap::ArgMatches<'static>,
     pub conf: Option<crate::entity::conf::ServerConf>,
     pub addrs: String,
@@ -19,18 +17,10 @@ pub struct Application {
     pub server_case: Option<crate::engine::ServerCase>,
 }
 impl Application {
-    pub fn init(workpath: String, args: clap::ArgMatches<'static>) -> bool {
-        let conf: Option<crate::entity::conf::ServerConf> =
-            match std::fs::read_to_string(match args.value_of("conf") {
-                Some(v) => v.to_string(),
-                None => utils::envs("HBPROXY_CONF", "/etc/hbproxy/hbproxy.yml"),
-            }) {
-                Err(e) => None,
-                Ok(v) => match serde_yaml::from_str(v.as_str()) {
-                    Err(e) => None,
-                    Ok(v) => Some(v),
-                },
-            };
+    pub fn init(
+        conf: Option<crate::entity::conf::ServerConf>,
+        args: clap::ArgMatches<'static>,
+    ) -> bool {
         let addr_confs = match &conf {
             None => None,
             Some(v) => match &v.server.bind {
@@ -47,8 +37,6 @@ impl Application {
         };
         let app = Self {
             ctx: ruisutil::Context::background(None),
-            id: String::new(),
-            workpath: workpath,
             conf: conf,
             addrs: if let Some(vs) = args.value_of("addr") {
                 vs.to_string()

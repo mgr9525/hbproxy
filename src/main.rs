@@ -27,7 +27,7 @@ use clap::{App, Arg, SubCommand};
 use crate::app::Application;
 
 fn main() {
-    let matches = App::new("My Super Program")
+    let matches = App::new("Hbproxy")
         .version("1.0")
         .author("Linsk Ruis. <mgr9525@gmail.com>")
         .about("Does awesome things")
@@ -82,7 +82,6 @@ fn main() {
                         .help("print debug information verbosely"),
                 ),
         )
-        .subcommand(SubCommand::with_name("listcodec").about("controls testing features"))
         .subcommand(SubCommand::with_name("server").about("controls testing features"))
         .subcommand(
             SubCommand::with_name("node")
@@ -137,6 +136,17 @@ fn main() {
         )
         .get_matches();
 
+    let conf: Option<crate::entity::conf::ServerConf> =
+        match std::fs::read_to_string(match matches.value_of("conf") {
+            Some(v) => v.to_string(),
+            None => utils::envs("HBPROXY_CONF", "/etc/hbproxy/hbproxy.yml"),
+        }) {
+            Err(e) => None,
+            Ok(v) => match serde_yaml::from_str(v.as_str()) {
+                Err(e) => None,
+                Ok(v) => Some(v),
+            },
+        };
     let mut dup = flexi_logger::Duplicate::Info;
     let logs = if matches.is_present("debug") {
         dup = flexi_logger::Duplicate::Debug;
@@ -144,12 +154,22 @@ fn main() {
     } else {
         "info"
     };
-    let loger = flexi_logger::Logger::try_with_str(logs)
+    let mut loger = flexi_logger::Logger::try_with_str(logs)
         .unwrap()
-        .duplicate_to_stderr(dup);
-    loger.start();
+        .duplicate_to_stderr(dup)
+        .write_mode(flexi_logger::WriteMode::BufferAndFlush);
+    if let Some(cfg) = &conf {
+        if let Some(vs) = &cfg.server.log_path {
+            loger = loger.log_to_file(
+                flexi_logger::FileSpec::default().directory(std::path::PathBuf::from(vs)).suppress_timestamp(),
+            );
+        }
+    }
+    if let Err(e) = loger.start() {
+        println!("logger err:{}", e);
+    }
     log::debug!("Hello, world!");
-    if Application::init("/data".into(), matches) {
+    if Application::init(conf, matches) {
         let rt = async_std::task::block_on(cmd::cmds());
         //println!("block on:{}", rt);
         std::process::exit(rt);
