@@ -94,7 +94,7 @@ impl ProxyEngine {
                 "xxx"
             };
             if dpth.is_file() {
-                match self.load_conf(&dpth).await {
+                match self.load_confs(&dpth).await {
                     Err(e) => log::error!("load conf({}) faild:{}", dpths, e),
                     Ok(_) => log::info!("load conf({}) success", dpths),
                 }
@@ -104,11 +104,36 @@ impl ProxyEngine {
         Ok(())
     }
 
-    async fn load_conf(&self, dpth: &Path) -> io::Result<()> {
-        let cfg: ProxyInfoConf = match utils::ymlfile(&dpth) {
+    async fn load_confs(&self, dpth: &Path) -> io::Result<()> {
+        let rs: io::Result<Vec<ProxyInfoConf>> = utils::ymlfile(&dpth);
+        let mut vsok = false;
+        match rs {
+            Err(e) => log::warn!("load confs faild:{}", e),
+            Ok(vs) => {
+                vsok = true;
+                for v in vs {
+                    self.load_conf(v).await?;
+                }
+                return Ok(());
+            }
+        }
+        if !vsok {
+            let rs: io::Result<ProxyInfoConf> = utils::ymlfile(&dpth);
+            match rs {
+                Err(e) => log::warn!("load conf faild:{}", e),
+                Ok(v) => {
+                    self.load_conf(v).await?;
+                    return Ok(());
+                }
+            }
+        }
+        Err(ruisutil::ioerr("conf yml err", None))
+    }
+    async fn load_conf(&self, cfg: ProxyInfoConf) -> io::Result<()> {
+        /* let cfg: ProxyInfoConf = match utils::ymlfile(&dpth) {
             Err(e) => return Err(ruisutil::ioerr(format!("ymlfile err:{}", e), None)),
             Ok(v) => v,
-        };
+        }; */
         let bindls: Vec<&str> = cfg.bind.split(":").collect();
         if bindls.len() != 2 {
             return Err(ruisutil::ioerr("bind len err", None));
