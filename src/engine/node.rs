@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, LinkedList},
+    collections::{HashMap, VecDeque},
     io,
     sync::{Mutex, RwLock},
     time::Duration,
@@ -31,7 +31,7 @@ struct Inner {
     shuted: bool,
     ctmout: ruisutil::Timer,
 
-    msgs: Mutex<LinkedList<Messages>>,
+    msgs: Mutex<VecDeque<Messages>>,
     waits: RwLock<HashMap<String, Mutex<Option<TcpStream>>>>,
 }
 
@@ -51,7 +51,7 @@ impl NodeServer {
                 shuted: false,
                 ctmout: ruisutil::Timer::new(Duration::from_secs(30)),
 
-                msgs: Mutex::new(LinkedList::new()),
+                msgs: Mutex::new(VecDeque::new()),
                 waits: RwLock::new(HashMap::new()),
             }),
         }

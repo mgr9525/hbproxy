@@ -1,6 +1,7 @@
 use std::{
-    collections::{HashMap, LinkedList},
+    collections::{HashMap, VecDeque},
     io,
+    ops::Index,
     path::Path,
     sync::RwLock,
     time::Duration,
@@ -27,7 +28,7 @@ pub struct ProxyEngine {
 struct Inner {
     ctx: ruisutil::Context,
     node: NodeEngine,
-    proxys: RwLock<LinkedList<RuleProxy>>,
+    proxys: RwLock<VecDeque<RuleProxy>>,
 }
 
 impl ProxyEngine {
@@ -36,7 +37,7 @@ impl ProxyEngine {
             inner: ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
                 node: node,
-                proxys: RwLock::new(LinkedList::new()),
+                proxys: RwLock::new(VecDeque::new()),
             }),
         }
     }
@@ -72,17 +73,15 @@ impl ProxyEngine {
                 None,
             ));
         }
-        if let Ok(mut lkv) = self.inner.proxys.write() {
-            let mut cursor = lkv.cursor_front_mut();
-            loop {
-                match cursor.current() {
+        if let Ok(lkv) = self.inner.proxys.read() {
+            let mut itr = lkv.iter();
+            while !self.inner.ctx.done() {
+                match itr.next() {
                     None => break,
                     Some(v) => {
                         v.stop();
-                        cursor.remove_current();
                     }
                 }
-                cursor.move_next()
             }
         }
         self.wait_proxys_clear().await;
@@ -213,22 +212,18 @@ impl ProxyEngine {
     }
     pub fn remove(&self, name: &String) -> io::Result<()> {
         if let Ok(mut lkv) = self.inner.proxys.write() {
-            let mut cursor = lkv.cursor_front_mut();
-            loop {
-                match cursor.current() {
-                    None => break,
-                    Some(v) => {
-                        if v.conf().name.eq(name) {
-                            v.stop();
-                            cursor.remove_current();
-                            log::debug!("proxy remove:{}!!!!", name.as_str());
-                            return Ok(());
-                        }
-                    }
+            lkv.retain(|v| {
+                if v.conf().name.eq(name) {
+                    v.stop();
+                    log::debug!("proxy remove:{}!!!!", name.as_str());
+                    true
+                } else {
+                    false
                 }
-                cursor.move_next();
-            }
+            });
+            Ok(())
+        } else {
+            Err(ruisutil::ioerr("lock err", None))
         }
-        Err(ruisutil::ioerr("lock err", None))
     }
 }

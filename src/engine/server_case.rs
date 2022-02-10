@@ -1,18 +1,15 @@
-use std::{
-    collections::{HashMap, LinkedList},
-    io,
-    sync::RwLock,
-};
+use std::io;
 
 use async_std::task;
 
 use crate::{
+    app::Application,
     engine::{NodeEngine, NodeServer, NodeServerCfg, ProxyEngine, RuleCfg},
     entity::{
         node::{NodeConnMsg, NodeListRep, RegNodeRep, RegNodeReq},
         proxy::RuleConfReq,
     },
-    utils, app::Application,
+    utils,
 };
 
 #[derive(Clone)]
@@ -51,12 +48,12 @@ impl ServerCase {
     }
 
     pub fn authed_server(&self, c: &hbtp::Context) -> bool {
-      self.autheds(c, &Application::get().keys)
+        self.autheds(c, &Application::get().keys)
     }
     pub fn authed_api(&self, c: &hbtp::Context) -> bool {
-      self.autheds(c, &Application::get().apikeys)
+        self.autheds(c, &Application::get().apikeys)
     }
-    fn autheds(&self, c: &hbtp::Context,key:&Option<String>) -> bool {
+    fn autheds(&self, c: &hbtp::Context, key: &Option<String>) -> bool {
         match key {
             None => return true,
             Some(vs) => {

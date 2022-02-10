@@ -1,4 +1,3 @@
-#![feature(linked_list_cursors)]
 extern crate async_std;
 extern crate clap;
 extern crate flexi_logger;
@@ -7,14 +6,15 @@ extern crate hbtp;
 extern crate hex;
 extern crate libc;
 extern crate log;
-extern crate xid;
 extern crate once_cell;
 extern crate ruisutil;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
+extern crate xid;
 
-#[cfg(windows)] extern crate winapi;
+#[cfg(windows)]
+extern crate winapi;
 
 mod app;
 mod cmd;

@@ -1,5 +1,4 @@
 use std::{
-    collections::{HashMap, LinkedList},
     io,
     net::Shutdown,
     sync::{Arc, RwLock},
@@ -131,13 +130,19 @@ impl RuleProxy {
                 }
             }
         }
+        while !self.inner.ctx.done() {
+            match self.inner.egn.remove(&self.inner.cfg.name) {
+                Err(e) => log::error!("end remove proxy err:{}", e),
+                Ok(_) => break,
+            };
+            task::sleep(Duration::from_millis(100)).await;
+        }
         log::debug!(
             "{}:{} proxy stop!!",
             self.inner.cfg.bind_host.as_str(),
             self.inner.cfg.bind_port
         );
         self.stop();
-        self.inner.egn.remove(&self.inner.cfg.name)?;
         Ok(())
     }
     async fn run_cli(&self, conn: TcpStream) {
