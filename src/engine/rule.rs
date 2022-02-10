@@ -2,10 +2,18 @@ use std::{
     collections::{HashMap, LinkedList},
     io,
     net::Shutdown,
-    os::unix::prelude::AsRawFd,
     sync::{Arc, RwLock},
     time::Duration,
 };
+
+crate::cfg_unix! {
+  use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
+}
+crate::cfg_windows! {
+  use std::os::windows::io::{
+      AsRawSocket, FromRawSocket, IntoRawSocket, RawSocket,
+  };
+}
 
 use async_std::{
     io::WriteExt,
@@ -69,13 +77,29 @@ impl RuleProxy {
         });
         Ok(())
     }
-    pub fn stop(&self) {
-        //unsafe { self.inner.muts().lsr = None };
-        self.inner.ctx.done();
-        if let Some(lsr) = &self.inner.lsr {
-            let fd = lsr.as_raw_fd();
-            if fd != 0 {
-                unsafe { libc::shutdown(fd, libc::SHUT_RD) };
+    crate::cfg_unix! {
+      pub fn stop(&self) {
+          //unsafe { self.inner.muts().lsr = None };
+          self.inner.ctx.done();
+          if let Some(lsr) = &self.inner.lsr {
+              let fd = lsr.as_raw_fd();
+              if fd != 0 {
+                  // std::net::TcpListener::set_nonblocking(lsr, true);
+                  unsafe { libc::shutdown(fd, libc::SHUT_RD) };
+              }
+            }
+        }
+    }
+    crate::cfg_windows! {
+      pub fn stop(&self) {
+          //unsafe { self.inner.muts().lsr = None };
+          self.inner.ctx.done();
+          if let Some(lsr) = &self.inner.lsr {
+              let fd = lsr.as_raw_socket();
+              if fd != 0 {
+                  // std::net::TcpListener::set_nonblocking(lsr, true);
+                  unsafe { libc::close(fd as libc::c_int) };
+              }
             }
         }
     }

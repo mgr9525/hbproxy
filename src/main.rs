@@ -18,6 +18,7 @@ mod app;
 mod cmd;
 mod engine;
 mod entity;
+#[macro_use]
 mod utils;
 
 use std::io;
