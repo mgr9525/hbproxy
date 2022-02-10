@@ -83,7 +83,7 @@ impl ServerCase {
                     Ok(v) => match SystemTime::now().duration_since(v) {
                         Err(e) => return false,
                         Ok(tm) => {
-                          println!("time since:{}",tm.as_secs_f32());
+                            // println!("time since:{}", tm.as_secs_f32());
                             if tm > Duration::from_secs(120) {
                                 return false;
                             }
