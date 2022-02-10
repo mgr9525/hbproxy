@@ -1,4 +1,7 @@
-use std::io;
+use std::{
+    io,
+    time::{Duration, SystemTime},
+};
 
 use async_std::task;
 
@@ -74,6 +77,18 @@ impl ServerCase {
                 };
                 if tms.is_empty() || rands.is_empty() || signs.is_empty() {
                     return false;
+                }
+                match ruisutil::strptime(tms.as_str(), "%+") {
+                    Err(e) => return false,
+                    Ok(v) => match SystemTime::now().duration_since(v) {
+                        Err(e) => return false,
+                        Ok(tm) => {
+                          println!("time since:{}",tm.as_secs_f32());
+                            if tm > Duration::from_secs(120) {
+                                return false;
+                            }
+                        }
+                    },
                 }
                 // println!("tms:{},rands:{},signs:{}",tms,rands,signs);
                 let sign = ruisutil::md5str(format!(
