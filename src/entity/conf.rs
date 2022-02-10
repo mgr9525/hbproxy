@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct ServerConf {
     pub server: ServerInfoConf,
+    pub api_server: Option<ApiServerInfoConf>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -12,6 +13,12 @@ pub struct ServerInfoConf {
     pub key: Option<String>,
     pub log_path: Option<String>,
     pub proxys_path: Option<String>,
+}
+#[derive(Serialize, Deserialize)]
+pub struct ApiServerInfoConf {
+    // #[serde(rename = "name")]
+    pub host: Option<String>,
+    pub key: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

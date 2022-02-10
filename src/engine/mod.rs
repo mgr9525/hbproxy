@@ -6,7 +6,6 @@ mod proxyer;
 mod rule;
 mod server_case;
 
-pub use server_case::ServerConf;
 pub use server_case::ServerCase;
 
 pub use node::NodeServer;

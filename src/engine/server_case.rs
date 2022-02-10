@@ -12,32 +12,27 @@ use crate::{
         node::{NodeConnMsg, NodeListRep, RegNodeRep, RegNodeReq},
         proxy::RuleConfReq,
     },
-    utils,
+    utils, app::Application,
 };
 
-pub struct ServerConf {
-    pub node_key: Option<String>,
-}
 #[derive(Clone)]
 pub struct ServerCase {
     inner: ruisutil::ArcMut<Inner>,
 }
 struct Inner {
     ctx: ruisutil::Context,
-    conf: ServerConf,
     proxy: ProxyEngine,
     node: NodeEngine,
     // nodes: RwLock<HashMap<String, NodeServer>>,
 }
 
 impl ServerCase {
-    pub fn new(ctx: ruisutil::Context, conf: ServerConf) -> Self {
+    pub fn new(ctx: ruisutil::Context) -> Self {
         let nd = NodeEngine::new(ctx.clone());
         let pxy = ProxyEngine::new(ctx.clone(), nd.clone());
         Self {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ctx,
-                conf: conf,
                 proxy: pxy,
                 node: nd,
                 // nodes: RwLock::new(HashMap::new()),
@@ -55,8 +50,14 @@ impl ServerCase {
         });
     }
 
-    pub fn authed(&self, c: &hbtp::Context) -> bool {
-        match &self.inner.conf.node_key {
+    pub fn authed_server(&self, c: &hbtp::Context) -> bool {
+      self.autheds(c, &Application::get().keys)
+    }
+    pub fn authed_api(&self, c: &hbtp::Context) -> bool {
+      self.autheds(c, &Application::get().apikeys)
+    }
+    fn autheds(&self, c: &hbtp::Context,key:&Option<String>) -> bool {
+        match key {
             None => return true,
             Some(vs) => {
                 if vs.is_empty() {

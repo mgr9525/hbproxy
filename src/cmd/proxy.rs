@@ -20,7 +20,7 @@ pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
 }
 
 async fn reloads<'a>(args: &clap::ArgMatches<'a>) -> i32 {
-    let mut req = Application::new_req(3, "ProxyReload");
+    let mut req = Application::new_reqs(3, "ProxyReload");
     match req.dors(None, None).await {
         Err(e) => {
             log::error!("request do err:{}", e);
@@ -109,7 +109,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         },
         proxy_port: gotoport,
     };
-    let mut req = Application::new_req(3, "ProxyAdd");
+    let mut req = Application::new_reqs(3, "ProxyAdd");
     match req.do_json(None, &data).await {
         Err(e) => {
             log::error!("request do err:{}", e);
@@ -136,7 +136,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
 }
 
 async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
-    let mut req = Application::new_req(3, "ProxyList");
+    let mut req = Application::new_reqs(3, "ProxyList");
     match req.dors(None, None).await {
         Err(e) => {
             log::error!("request do err:{}", e);
@@ -190,7 +190,7 @@ async fn rms<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         println!("name is required");
         return -1;
     };
-    let mut req = Application::new_req(3, "ProxyRemove");
+    let mut req = Application::new_reqs(3, "ProxyRemove");
     req.add_arg("name", names);
     match req.dors(None, None).await {
         Err(e) => {

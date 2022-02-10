@@ -140,7 +140,7 @@ impl NodeClient {
     }
     async fn reconn(&self) {
         log::debug!("NodeClient reconn start:{}", self.inner.cfg.name.as_str());
-        let mut req = Application::new_req(2, "NodeJoin");
+        let mut req = Application::new_req(1, "NodeJoin",false);
         let data = RegNodeReq {
             name: self.inner.cfg.name.clone(),
             token: self.inner.cfg.token.clone(),
@@ -230,7 +230,7 @@ impl NodeClient {
         }
     }
     async fn new_conn(&self, data: NodeConnMsg) {
-        let mut req = Application::new_req(2, "NodeConn");
+        let mut req = Application::new_req(1, "NodeConn",false);
         match req.do_json(None, &data).await {
             Err(e) => {
                 log::error!("new_conn request do err:{}", e);

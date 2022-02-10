@@ -44,7 +44,7 @@ fn main() {
                 .short("a")
                 .long("addr")
                 .value_name("IP:PORT")
-                .help("server address.(example:0.0.0.0:6573)"),
+                .help("server address.(def:0.0.0.0:6573)"),
         )
         .arg(
             Arg::with_name("key")
@@ -52,6 +52,18 @@ fn main() {
                 .long("key")
                 .value_name("KEY")
                 .help("server key"),
+        )
+        .arg(
+            Arg::with_name("apiaddr")
+                .long("apiaddr")
+                .value_name("IP:PORT")
+                .help("server api address.(def:localhost:6574)"),
+        )
+        .arg(
+            Arg::with_name("apikey")
+                .long("apikey")
+                .value_name("KEY")
+                .help("server api key"),
         )
         /* .arg(
             Arg::with_name("proxys-path")
@@ -163,7 +175,9 @@ fn main() {
     if let Some(cfg) = &conf {
         if let Some(vs) = &cfg.server.log_path {
             loger = loger.log_to_file(
-                flexi_logger::FileSpec::default().directory(std::path::PathBuf::from(vs)).suppress_timestamp(),
+                flexi_logger::FileSpec::default()
+                    .directory(std::path::PathBuf::from(vs))
+                    .suppress_timestamp(),
             );
         }
     }
