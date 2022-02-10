@@ -21,13 +21,12 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     } else {
         "unkown"
     };
-    let addrs = Application::get().addrs.clone();
     match utils::remote_version(Application::new_req(1, "version", false)).await {
         Err(e) => {
-            log::error!("remote [{}] version err:{}", addrs, e);
+            log::error!("remote version err:{}", e);
             // return -1;
         }
-        Ok(v) => log::info!("remote [{}] version:{}", addrs, v.as_str()),
+        Ok(v) => log::info!("remote version:{}", v.as_str()),
     };
 
     let cli = engine::NodeClient::new(
@@ -47,7 +46,7 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
 }
 
 async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
-    let mut req = Application::new_reqs(2,"NodeList");
+    let mut req = Application::new_reqs(2, "NodeList");
     match req.dors(None, None).await {
         Err(e) => {
             log::error!("request do err:{}", e);

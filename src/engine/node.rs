@@ -130,12 +130,14 @@ impl NodeServer {
                     Ok(mut lkv) => msg = lkv.pop_front(),
                 }
                 if let Some(v) = msg {
+                    let ctrl=v.control;
                     if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
                         log::error!("run_send send_msgs err:{}", e);
                         /* if let Ok(mut lkv) = self.inner.waits.write() {
                             lkv.remove(&xids);
                         } */
                     } else {
+                        log::debug!("run_send send_msgs ok:{}", ctrl);
                         continue;
                     }
                 }
@@ -188,7 +190,7 @@ impl NodeServer {
         Err(ruisutil::ioerr("timeout", None))
     }
     pub async fn wait_conn(&self, port: i32) -> io::Result<TcpStream> {
-        let ins = unsafe { self.inner.muts() };
+        // let ins = unsafe { self.inner.muts() };
         let mut xids = format!("{}-{}", xid::new().to_string().as_str(), port);
         if let Ok(lkv) = self.inner.waits.read() {
             while lkv.contains_key(&xids) {
@@ -225,7 +227,7 @@ impl NodeServer {
 
             let ctx = ruisutil::Context::with_timeout(
                 Some(self.inner.ctx.clone()),
-                Duration::from_secs(5),
+                Duration::from_secs(10),
             );
             let mut rets = None;
             while !ctx.done() {

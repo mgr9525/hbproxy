@@ -93,17 +93,15 @@ fn main() {
                 .help("Sets the level of verbosity"),
         ) */
         .subcommand(
-            SubCommand::with_name("test")
-                .about("controls testing features")
-                .version("1.3")
-                .author("Someone E. <someone_else@other.com>")
+            SubCommand::with_name("version")
+                .about("get application version.")
                 .arg(
-                    Arg::with_name("debug")
-                        .short("d")
-                        .help("print debug information verbosely"),
+                    Arg::with_name("remote")
+                        .long("remote")
+                        .help("show remote server version."),
                 ),
         )
-        .subcommand(SubCommand::with_name("server").about("controls testing features"))
+        .subcommand(SubCommand::with_name("server").about("start hbproxy server."))
         .subcommand(
             SubCommand::with_name("node")
                 .about("node command")
