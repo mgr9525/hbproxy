@@ -8,7 +8,7 @@ SERVERS=yldown.jazpan.com
 # SERVERS=linux.1ydt.cn
 
 
-scp -P 122 target/release/hbproxy mgr@$SERVERS:~/temp/
+scp -P 122 target/release/hbproxy mgr@$SERVERS:~/website/static/rust/linux64
 #scp -P 122 target/release/hbproxy mgr@main.jazpan.com:~/temps/
 
 sudo cp target/release/hbproxy /usr/local/bin/
