@@ -10,3 +10,5 @@ SERVERS=yldown.jazpan.com
 
 scp -P 122 target/release/hbproxy mgr@$SERVERS:~/temp/
 #scp -P 122 target/release/hbproxy mgr@main.jazpan.com:~/temps/
+
+sudo cp target/release/hbproxy /usr/local/bin/

@@ -68,6 +68,11 @@ fn main() {
                 .value_name("KEY")
                 .help("server api key"),
         )
+        .arg(
+            Arg::with_name("keyignore")
+                .long("keyignore")
+                .help("ignore key err"),
+        )
         /* .arg(
             Arg::with_name("proxys-path")
                 .long("proxys-path")

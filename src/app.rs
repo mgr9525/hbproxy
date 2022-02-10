@@ -15,6 +15,7 @@ pub struct Application {
     pub keys: Option<String>,
     pub apiaddrs: String,
     pub apikeys: Option<String>,
+    pub keyignore:bool,
 
     pub server_case: Option<crate::engine::ServerCase>,
 }
@@ -98,6 +99,7 @@ impl Application {
             } else {
                 None
             },
+            keyignore:args.is_present("keyignore"),
 
             cmdargs: args,
             server_case: None,
@@ -126,7 +128,7 @@ impl Application {
     }
 
     pub fn new_reqs(ctrl: i32, cmds: &str) -> hbtp::Request {
-      Self::new_req(ctrl, cmds, true)
+        Self::new_req(ctrl, cmds, true)
     }
     pub fn new_req(ctrl: i32, cmds: &str, is_api: bool) -> hbtp::Request {
         let addrs = if is_api {
@@ -151,6 +153,14 @@ impl Application {
                 rands.as_str(),
                 vs.as_str()
             ));
+            /* log::debug!(
+                "sginos:{}{}{}{}",
+                cmds,
+                tms.as_str(),
+                rands.as_str(),
+                vs.as_str()
+            );
+            log::debug!("signs:{}",sign.as_str()); */
             req.add_arg("times", tms.as_str());
             req.add_arg("random", rands.as_str());
             req.add_arg("sign", sign.as_str());

@@ -35,6 +35,8 @@ struct Inner {
     ctms: ruisutil::Timer,
     ctmout: ruisutil::Timer,
     msgs: Mutex<LinkedList<Messages>>,
+
+    connhost: String,
 }
 
 impl NodeClient {
@@ -49,6 +51,8 @@ impl NodeClient {
                 ctms: ruisutil::Timer::new(Duration::from_secs(20)),
                 ctmout: ruisutil::Timer::new(Duration::from_secs(30)),
                 msgs: Mutex::new(LinkedList::new()),
+
+                connhost: utils::envs("HBPROXY_CLI2HOST", "localhost"),
             }),
         }
     }
@@ -146,6 +150,7 @@ impl NodeClient {
         match req.do_json(None, &data).await {
             Err(e) => {
                 log::error!("conntion request do err:{}", e);
+                task::sleep(Duration::from_secs(5)).await;
             }
             Ok(mut res) => {
                 if res.get_code() == utils::HbtpTokenErr {
@@ -155,9 +160,17 @@ impl NodeClient {
                     return;
                 }
                 if res.get_code() == hbtp::ResCodeAuth {
+                    /* let keys = match &Application::get().keys {
+                        None => "[nil]",
+                        Some(vs) => vs.as_str(),
+                    }; */
                     log::error!("授权失败,请检查key是否正确");
                     task::sleep(Duration::from_secs(1)).await;
-                    Application::context().stop();
+                    if !Application::get().keyignore {
+                        Application::context().stop();
+                        return;
+                    }
+                    task::sleep(Duration::from_secs(3)).await;
                     return;
                 }
                 if res.get_code() == hbtp::ResCodeOk {
@@ -243,7 +256,7 @@ impl NodeClient {
                         }
                     }
 
-                    let addrs = format!("localhost:{}", data.port);
+                    let addrs = format!("{}:{}", self.inner.connhost.as_str(), data.port);
                     let connlc = match TcpStream::connect(addrs.as_str()).await {
                         Ok(v) => v,
                         Err(e) => {
