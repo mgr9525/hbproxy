@@ -71,9 +71,7 @@ impl NodeClient {
         });
         let c = self.clone();
         task::spawn(async move {
-            while !c.inner.ctx.done() {
-                c.run_send().await;
-            }
+            c.run_send().await;
             println!("client run_send end!!");
         });
         log::debug!("NodeClient run_recv start:{}", self.inner.cfg.name.as_str());
@@ -140,7 +138,7 @@ impl NodeClient {
     }
     async fn reconn(&self) {
         log::debug!("NodeClient reconn start:{}", self.inner.cfg.name.as_str());
-        let mut req = Application::new_req(1, "NodeJoin",false);
+        let mut req = Application::new_req(1, "NodeJoin", false);
         let data = RegNodeReq {
             name: self.inner.cfg.name.clone(),
             token: self.inner.cfg.token.clone(),
@@ -211,9 +209,11 @@ impl NodeClient {
         }
     }
     async fn on_msg(&self, mut msg: utils::msg::Message) {
-        self.inner.ctmout.reset();
         match msg.control {
-            0 => log::debug!("remote reply heart"),
+            0 => {
+                self.inner.ctmout.reset();
+                log::debug!("remote reply heart")
+            }
             1 => {
                 if let Some(bds) = msg.bodys {
                     let data: NodeConnMsg = match serde_json::from_slice(&bds) {
@@ -230,7 +230,7 @@ impl NodeClient {
         }
     }
     async fn new_conn(&self, data: NodeConnMsg) {
-        let mut req = Application::new_req(1, "NodeConn",false);
+        let mut req = Application::new_req(1, "NodeConn", false);
         match req.do_json(None, &data).await {
             Err(e) => {
                 log::error!("new_conn request do err:{}", e);
