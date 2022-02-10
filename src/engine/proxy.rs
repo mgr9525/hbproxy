@@ -3,8 +3,10 @@ use std::{
     io,
     path::Path,
     sync::RwLock,
+    time::Duration,
 };
 
+use async_std::task;
 use ruisutil::ArcMut;
 
 use crate::{
@@ -39,6 +41,16 @@ impl ProxyEngine {
         }
     }
 
+    pub async fn wait_proxys_clear(&self) {
+        while !self.inner.ctx.done() {
+            if let Ok(lkv) = self.inner.proxys.read() {
+                if lkv.len() <= 0 {
+                    return;
+                }
+            }
+            task::sleep(Duration::from_millis(100)).await;
+        }
+    }
     pub async fn reload(&self) -> io::Result<()> {
         let path = match &Application::get().conf {
             None => return Err(ruisutil::ioerr("not found proxys path", None)),
@@ -73,6 +85,7 @@ impl ProxyEngine {
                 cursor.move_next()
             }
         }
+        self.wait_proxys_clear().await;
         for e in std::fs::read_dir(pth)? {
             let dir = e?;
             let dpth = dir.path();

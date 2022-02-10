@@ -137,12 +137,28 @@ impl RuleProxy {
             self.inner.cfg.bind_port
         );
         self.stop();
-        self.inner.egn.remove(&self.inner.cfg.name);
+        self.inner.egn.remove(&self.inner.cfg.name)?;
         Ok(())
     }
     async fn run_cli(&self, conn: TcpStream) {
         match self.inner.node.find_node(&self.inner.cfg.proxy_host) {
-            Err(e) => log::error!("{} proxy err:{}", self.inner.cfg.proxy_host.as_str(), e),
+            Err(e) => {
+                log::error!("{} proxy err:{}", self.inner.cfg.proxy_host.as_str(), e);
+                let addrs = format!(
+                    "{}:{}",
+                    self.inner.cfg.proxy_host, self.inner.cfg.proxy_port
+                );
+                let connlc = match TcpStream::connect(addrs.as_str()).await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("new_conn connect err:{}", e);
+                        return;
+                    }
+                };
+                log::debug!("rule Proxyer start on -> {}", addrs.as_str());
+                let px = Proxyer::new(self.inner.ctx.clone(), addrs.clone(), conn, connlc);
+                px.start().await;
+            }
             Ok(v) => {
                 let connlc = match v.wait_conn(self.inner.cfg.proxy_port).await {
                     Ok(v) => v,
@@ -160,13 +176,6 @@ impl RuleProxy {
                     conn,
                     connlc,
                 );
-                /* let px = Proxyer::new(
-                    self.inner.ctx.clone(),
-                    self.clone(),
-                    conn,
-                    v,
-                    self.inner.cfg.proxy_port,
-                ); */
                 px.start().await;
             }
         }
