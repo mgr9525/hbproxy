@@ -7,12 +7,14 @@ extern crate hbtp;
 extern crate hex;
 extern crate libc;
 extern crate log;
+extern crate xid;
 extern crate once_cell;
 extern crate ruisutil;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
-extern crate xid;
+
+#[cfg(windows)] extern crate winapi;
 
 mod app;
 mod cmd;

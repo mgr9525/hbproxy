@@ -10,6 +10,7 @@ crate::cfg_unix! {
   use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 }
 crate::cfg_windows! {
+  use winapi::um::winsock2;
   use std::os::windows::io::{
       AsRawSocket, FromRawSocket, IntoRawSocket, RawSocket,
   };
@@ -98,7 +99,7 @@ impl RuleProxy {
               let fd = lsr.as_raw_socket();
               if fd != 0 {
                   // std::net::TcpListener::set_nonblocking(lsr, true);
-                  unsafe { libc::close(fd as libc::c_int) };
+                  unsafe { winsock2::closesocket(fd as winsock2::SOCKET) };
               }
             }
         }
