@@ -230,9 +230,9 @@ impl NodeClient {
         }
     }
     async fn on_msg(&self, mut msg: utils::msg::Message) {
+        self.inner.ctmout.reset();
         match msg.control {
             0 => {
-                self.inner.ctmout.reset();
                 log::debug!("remote reply heart")
             }
             1 => {
