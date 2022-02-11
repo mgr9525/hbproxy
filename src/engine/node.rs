@@ -158,12 +158,12 @@ impl NodeServer {
         }
     }
     async fn on_msg(&self, mut msg: utils::msg::Message) {
-        self.inner.ctmout.reset();
         match msg.control {
             0 => {
+                self.inner.ctmout.reset();
                 log::debug!("{} heart", self.inner.cfg.name.as_str());
                 if let Ok(mut lkv) = self.inner.msgs.lock() {
-                    lkv.push_back(Messages {
+                    lkv.push_front(Messages {
                         control: 0,
                         cmds: Some("heart".into()),
                         heads: None,

@@ -219,7 +219,7 @@ impl NodeClient {
             }
             if self.inner.ctms.tick() {
                 if let Ok(mut lkv) = self.inner.msgs.lock() {
-                    lkv.push_back(Messages {
+                    lkv.push_front(Messages {
                         control: 0,
                         cmds: Some("heart".into()),
                         heads: None,
@@ -229,10 +229,10 @@ impl NodeClient {
             }
         }
     }
-    async fn on_msg(&self, mut msg: utils::msg::Message) {
-        self.inner.ctmout.reset();
+    async fn on_msg(&self, msg: utils::msg::Message) {
         match msg.control {
             0 => {
+                self.inner.ctmout.reset();
                 log::debug!("remote reply heart")
             }
             1 => {
