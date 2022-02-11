@@ -85,7 +85,7 @@ impl RuleProxy {
               let fd = lsr.as_raw_fd();
               if fd != 0 {
                   // std::net::TcpListener::set_nonblocking(lsr, true);
-                  unsafe { libc::shutdown(fd, libc::SHUT_RD) };
+                  unsafe { libc::shutdown(fd, libc::SHUT_RDWR) };
               }
             }
         }
