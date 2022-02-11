@@ -67,9 +67,14 @@ impl NodeServer {
     }
 
     fn close(&self) {
+        if self.inner.shuted {
+            return;
+        }
         let ins = unsafe { self.inner.muts() };
         ins.shuted = true;
-        ins.conn.shutdown(std::net::Shutdown::Both);
+        if let Err(e) = ins.conn.shutdown(std::net::Shutdown::Both) {
+            log::error!("close shutdown err:{}", e);
+        }
     }
     pub fn stop(&self) {
         self.inner.ctx.stop();
@@ -130,7 +135,7 @@ impl NodeServer {
                     Ok(mut lkv) => msg = lkv.pop_front(),
                 }
                 if let Some(v) = msg {
-                    let ctrl=v.control;
+                    let ctrl = v.control;
                     if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
                         log::error!("run_send send_msgs err:{}", e);
                         /* if let Ok(mut lkv) = self.inner.waits.write() {

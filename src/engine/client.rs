@@ -57,10 +57,15 @@ impl NodeClient {
         }
     }
     fn close(&self) {
+        if self.inner.shuted {
+            return;
+        }
         let ins = unsafe { self.inner.muts() };
         ins.shuted = true;
         if let Some(conn) = &mut ins.conn {
-            conn.shutdown(std::net::Shutdown::Both);
+            if let Err(e) = conn.shutdown(std::net::Shutdown::Both) {
+                log::error!("close shutdown err:{}", e);
+            }
         }
     }
     pub async fn start(self) -> io::Result<()> {
@@ -127,7 +132,7 @@ impl NodeClient {
                 }
                 if let Some(v) = msg {
                     if let Some(conn) = &mut ins.conn {
-                        let ctrl=v.control;
+                        let ctrl = v.control;
                         if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, conn, v).await {
                             log::error!("run_send send_msgs err:{}", e);
                             /* if let Ok(mut lkv) = self.inner.waits.write() {
