@@ -59,14 +59,14 @@ impl Message {
 
 pub async fn parse_msg(ctxs: &ruisutil::Context, conn: &mut TcpStream) -> io::Result<Message> {
     let bts = ruisutil::tcp_read_async(ctxs, conn, 1).await?;
-    if bts.len() < 1 && bts[0] != 0x8du8 {
+    if bts.len() < 1 || bts[0] != 0x8du8 {
         return Err(ruisutil::ioerr(
             format!("first byte err:{:?}", &bts[..]),
             None,
         ));
     }
     let bts = ruisutil::tcp_read_async(ctxs, conn, 1).await?;
-    if bts.len() < 1 && bts[0] != 0x8fu8 {
+    if bts.len() < 1 || bts[0] != 0x8fu8 {
         return Err(ruisutil::ioerr(
             format!("first byte err:{:?}", &bts[..]),
             None,
@@ -106,7 +106,7 @@ pub async fn parse_msg(ctxs: &ruisutil::Context, conn: &mut TcpStream) -> io::Re
         rt.bodys = Some(bts);
     }
     let bts = ruisutil::tcp_read_async(ctxs, conn, 2).await?;
-    if bts.len() < 2 && bts[0] != 0x8eu8 && bts[1] != 0x8fu8 {
+    if bts.len() < 2 || bts[0] != 0x8eu8 || bts[1] != 0x8fu8 {
         return Err(ruisutil::ioerr(
             format!("end byte err:{:?}", &bts[..]),
             None,
