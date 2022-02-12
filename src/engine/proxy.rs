@@ -44,12 +44,21 @@ impl ProxyEngine {
 
     pub async fn wait_proxys_clear(&self) {
         while !self.inner.ctx.done() {
+            task::sleep(Duration::from_millis(100)).await;
             if let Ok(lkv) = self.inner.proxys.read() {
                 if lkv.len() <= 0 {
                     return;
                 }
+                let mut alled=true;
+                for v in lkv.iter(){
+                    if !v.stopd(){
+                        alled=false;
+                    }
+                }
+                if alled{
+                    return;
+                }
             }
-            task::sleep(Duration::from_millis(100)).await;
         }
     }
     pub async fn reload(&self) -> io::Result<()> {

@@ -64,6 +64,9 @@ impl RuleProxy {
         }
     }
 
+    pub fn stopd(&self)->bool{
+        self.inner.ctx.done()
+    }
     pub async fn start(&self) -> io::Result<()> {
         let c = self.clone();
         task::spawn(async move {
@@ -123,7 +126,7 @@ impl RuleProxy {
                             });
                         }
                         Err(e) => {
-                            println!("stream conn err:{}!!!!", e);
+                            log::error!("stream conn err:{}!!!!", e);
                             break;
                         }
                     },
