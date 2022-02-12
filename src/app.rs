@@ -6,7 +6,7 @@ use crate::utils;
 
 static mut APPONE: OnceCell<Application> = OnceCell::new();
 
-pub const VERSION: &str = "0.1.0";
+pub const VERSION: &str = "0.1.1";
 pub struct Application {
     ctx: ruisutil::Context,
     pub cmdargs: clap::ArgMatches<'static>,

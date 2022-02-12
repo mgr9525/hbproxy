@@ -32,7 +32,7 @@ use crate::app::Application;
 
 fn main() {
     let matches = App::new("Hbproxy")
-        .version("1.0")
+        .version(app::VERSION)
         .author("Linsk Ruis. <mgr9525@gmail.com>")
         .about("Does awesome things")
         .arg(Arg::with_name("debug").long("debug").hidden(true))

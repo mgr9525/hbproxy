@@ -107,7 +107,11 @@ impl NodeServer {
             if !self.inner.shuted {
                 match utils::msg::parse_msg(&self.inner.ctx, &mut ins.conn).await {
                     Err(e) => {
-                        log::error!("NodeServer parse_msg err:{:?}", e);
+                        log::error!(
+                            "NodeServer({}) parse_msg err:{:?}",
+                            self.inner.cfg.name.as_str(),
+                            e
+                        );
                         // self.stop();
                         self.close();
                         task::sleep(Duration::from_millis(100)).await;

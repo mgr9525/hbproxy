@@ -190,6 +190,7 @@ impl NodeClient {
                         }
                         Ok(v) => v,
                     };
+                    log::debug!("NodeClient reconn mv conn:{}", self.inner.cfg.name.as_str());
                     self.inner.ctmout.reset();
                     ins.shuted = false;
                     ins.conn = Some(res.own_conn());
