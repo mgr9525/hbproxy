@@ -64,7 +64,7 @@ impl RuleProxy {
         }
     }
 
-    pub fn stopd(&self)->bool{
+    pub fn stopd(&self) -> bool {
         self.inner.ctx.done()
     }
     pub async fn start(&self) -> io::Result<()> {
@@ -76,6 +76,10 @@ impl RuleProxy {
                 ins.lsr = None;
                 ins.stat = -1;
                 ins.msgs = Some(format!("bind err:{}", e));
+            } else {
+                let ins = unsafe { c.inner.muts() };
+                ins.stat = 2;
+                ins.msgs = Some("bind is closed!".to_string());
             }
         });
         Ok(())

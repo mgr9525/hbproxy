@@ -32,8 +32,8 @@ struct Inner {
 }
 impl Proxyer {
     pub fn new(ctx: ruisutil::Context, ids: String, conn: TcpStream, connlc: TcpStream) -> Self {
-        let bufw = CircleBuf::new(&ctx, 1024 * 1024*2);
-        let buflcw = CircleBuf::new(&ctx, 1024 * 1024*2);
+        let bufw = CircleBuf::new(&ctx, 1024 * 1024);
+        let buflcw = CircleBuf::new(&ctx, 1024 * 1024);
         Self {
             inner: ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
