@@ -139,14 +139,13 @@ impl NodeServer {
                     Ok(mut lkv) => msg = lkv.pop_front(),
                 }
                 if let Some(v) = msg {
-                    let ctrl = v.control;
                     if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
                         log::error!("run_send send_msgs err:{}", e);
                         /* if let Ok(mut lkv) = self.inner.waits.write() {
                             lkv.remove(&xids);
                         } */
                     } else {
-                        log::debug!("run_send send_msgs ok:{}", ctrl);
+                        // log::debug!("run_send send_msgs ok:{}", ctrl);
                         continue;
                     }
                 }
