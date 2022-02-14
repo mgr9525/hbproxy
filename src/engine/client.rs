@@ -38,7 +38,7 @@ impl NodeClient {
                 ctx: ctx,
                 cfg: cfg,
                 conn: conn,
-                shuted: true,
+                shuted: false,
                 conntm: ruisutil::Timer::new(Duration::from_secs(2)),
                 ctms: ruisutil::Timer::new(Duration::from_secs(20)),
                 ctmout: ruisutil::Timer::new(Duration::from_secs(30)),

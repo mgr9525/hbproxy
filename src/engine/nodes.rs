@@ -88,7 +88,8 @@ impl NodeEngine {
             if let Some(v) = lkv.get(k) {
                 // v.conf().name
                 rts.list.push(crate::entity::node::NodeListIt {
-                    name: k.clone(),
+                    name: v.conf().name.clone(),
+                    version: v.conf().version.clone(),
                     online: v.online(),
                     addrs: match v.peer_addr() {
                         Err(e) => {

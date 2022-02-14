@@ -1,9 +1,4 @@
-use crate::{
-    app::Application,
-    engine,
-    entity::node::{NodeListRep},
-    utils,
-};
+use crate::{app::Application, engine, entity::node::NodeListRep, utils};
 
 pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     if let Some(v) = args.subcommand_matches("join") {
@@ -55,17 +50,25 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                     }
                     Ok(v) => v,
                 };
-                println!("{:<30}{:<25}{:^5}", "Name", "Addr", "Online");
+                println!(
+                    "{:<30}{:<25}{:^10}{:^10}",
+                    "Name", "Addr", "Online", "Version"
+                );
                 for v in &data.list {
                     let frms = match &v.addrs {
                         None => "<nil>".to_string(),
                         Some(v) => v.clone(),
                     };
+                    let vers = match &v.version {
+                        None => "<nil>".to_string(),
+                        Some(v) => v.clone(),
+                    };
                     println!(
-                        "{:<30}{:<25}{:^5}",
+                        "{:<30}{:<25}{:^10}{:^10}",
                         v.name.as_str(),
                         frms.as_str(),
-                        v.online
+                        v.online,
+                        vers.as_str(),
                     );
                 }
             } else {

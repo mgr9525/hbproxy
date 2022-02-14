@@ -120,6 +120,7 @@ impl ServerCase {
 
         let cfg = NodeServerCfg {
             name: data.name.clone(),
+            version: data.version.clone(),
             token: ruisutil::random(32),
         };
 

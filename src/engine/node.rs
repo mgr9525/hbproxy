@@ -19,6 +19,7 @@ use super::NodeEngine;
 
 pub struct NodeServerCfg {
     pub name: String,
+    pub version: Option<String>,
     pub token: String,
 }
 #[derive(Clone)]
