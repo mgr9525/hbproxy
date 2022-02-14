@@ -1,8 +1,6 @@
 use crate::{
     app::Application,
-    engine,
     entity::proxy::{ProxyListRep, RuleConfReq},
-    utils,
 };
 
 pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
@@ -19,7 +17,7 @@ pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     }
 }
 
-async fn reloads<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+async fn reloads<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     let mut req = Application::new_reqs(3, "ProxyReload");
     match req.dors(None, None).await {
         Err(e) => {
@@ -135,7 +133,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     0
 }
 
-async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     let mut req = Application::new_reqs(3, "ProxyList");
     match req.dors(None, None).await {
         Err(e) => {

@@ -1,11 +1,11 @@
 use std::{
     io,
     net::Shutdown,
-    sync::{Arc, Mutex},
     time::Duration,
 };
 
-use async_std::{net::TcpStream, task};
+use async_std::{net::TcpStream, task,
+    sync::{Arc, Mutex}};
 use futures::AsyncReadExt;
 use ruisutil::{bytes::ByteBoxBuf, ArcMut};
 

@@ -1,7 +1,7 @@
 use crate::{
     app::Application,
     engine,
-    entity::node::{NodeListRep, RegNodeRep, RegNodeReq},
+    entity::node::{NodeListRep},
     utils,
 };
 
@@ -45,7 +45,7 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     }
 }
 
-async fn lss<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     let mut req = Application::new_reqs(2, "NodeList");
     match req.dors(None, None).await {
         Err(e) => {

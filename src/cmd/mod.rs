@@ -2,14 +2,7 @@ mod node;
 mod proxy;
 mod server;
 
-use std::io;
-
-use crate::{
-    app::{self, Application},
-    engine,
-    entity::node::{RegNodeRep, RegNodeReq},
-    utils,
-};
+use crate::{app::Application, utils};
 
 pub async fn cmds() -> i32 {
     if let Some(v) = Application::get().cmdargs.subcommand_matches("test") {

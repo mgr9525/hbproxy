@@ -1,6 +1,6 @@
-use std::{collections::HashMap, io, sync::RwLock};
+use std::{collections::HashMap, io};
 
-use async_std::{net::TcpStream, task};
+use async_std::{net::TcpStream, sync::RwLock, task};
 
 use crate::entity::node::{NodeConnMsg, NodeListRep, RegNodeReq};
 
@@ -26,28 +26,25 @@ impl NodeEngine {
         }
     }
 
-    pub fn reg_check(&self, data: &RegNodeReq) -> i32 {
+    pub async fn reg_check(&self, data: &RegNodeReq) -> i32 {
         let mut st = 0;
-        if let Ok(lkv) = self.inner.nodes.read() {
-            // println!("123:{}",data.name.as_str());
-            if let Some(v) = lkv.get(&data.name) {
-                if v.online() {
-                    st = 2;
-                    // println!("456:{}",data.name.as_str());
-                    if let Some(token) = &data.token {
-                        log::debug!(
-                            "get body name:{},token:{}",
-                            data.name.as_str(),
-                            token.as_str()
-                        );
-                        if token.eq(&v.conf().token) {
-                            st = 1;
-                        }
+        let lkv = self.inner.nodes.read().await;
+        // println!("123:{}",data.name.as_str());
+        if let Some(v) = lkv.get(&data.name) {
+            if v.online() {
+                st = 2;
+                // println!("456:{}",data.name.as_str());
+                if let Some(token) = &data.token {
+                    log::debug!(
+                        "get body name:{},token:{}",
+                        data.name.as_str(),
+                        token.as_str()
+                    );
+                    if token.eq(&v.conf().token) {
+                        st = 1;
                     }
                 }
             }
-        } else {
-            st = 3;
         }
         /* match st {
             0 => {}
@@ -66,78 +63,61 @@ impl NodeEngine {
         }; */
         st
     }
-    pub fn register(&self, cfg: NodeServerCfg, conn: TcpStream) -> io::Result<()> {
-        if let Ok(mut lkv) = self.inner.nodes.write() {
-            let name = cfg.name.clone();
-            if let Some(v) = lkv.get(&name) {
-                v.stop();
-            }
-            let node = NodeServer::new(self.inner.ctx.clone(), self.clone(), conn, cfg);
-            lkv.insert(name, node.clone());
-            task::spawn(node.start());
-            Ok(())
-        } else {
-            Err(ruisutil::ioerr("lock err", None))
+    pub async fn register(&self, cfg: NodeServerCfg, conn: TcpStream) {
+        let mut lkv = self.inner.nodes.write().await;
+        let name = cfg.name.clone();
+        if let Some(v) = lkv.get(&name) {
+            v.stop();
         }
+        let node = NodeServer::new(self.inner.ctx.clone(), self.clone(), conn, cfg);
+        lkv.insert(name, node.clone());
+        task::spawn(node.start());
     }
-    pub fn rm_node(&self, nm: &String) {
+    pub async fn rm_node(&self, nm: &String) {
         log::info!("rm_node:{}", nm.as_str());
-        if let Ok(mut lkv) = self.inner.nodes.write() {
-            if let Some(v) = lkv.get(nm) {
-                v.stop();
-                lkv.remove(nm);
-            }
+        let mut lkv = self.inner.nodes.write().await;
+        if let Some(v) = lkv.get(nm) {
+            v.stop();
+            lkv.remove(nm);
         }
     }
-    pub fn show_list(&self) -> io::Result<NodeListRep> {
+    pub async fn show_list(&self) -> io::Result<NodeListRep> {
         let mut rts = NodeListRep { list: Vec::new() };
-        match &self.inner.nodes.read() {
-            Err(e) => return Err(ruisutil::ioerr("lock err", None)),
-            Ok(lkv) => {
-                for k in lkv.keys() {
-                    if let Some(v) = lkv.get(k) {
-                        // v.conf().name
-                        rts.list.push(crate::entity::node::NodeListIt {
-                            name: k.clone(),
-                            online: v.online(),
-                            addrs: match v.peer_addr() {
-                                Err(e) => {
-                                    log::error!("peer_addr err:{}", e);
-                                    None
-                                }
-                                Ok(v) => Some(v),
-                            },
-                        });
-                    }
-                }
+        let lkv = self.inner.nodes.read().await;
+        for k in lkv.keys() {
+            if let Some(v) = lkv.get(k) {
+                // v.conf().name
+                rts.list.push(crate::entity::node::NodeListIt {
+                    name: k.clone(),
+                    online: v.online(),
+                    addrs: match v.peer_addr() {
+                        Err(e) => {
+                            log::error!("peer_addr err:{}", e);
+                            None
+                        }
+                        Ok(v) => Some(v),
+                    },
+                });
             }
-        };
+        }
         Ok(rts)
     }
 
-    pub fn find_node(&self, k: &String) -> io::Result<NodeServer> {
-        match &self.inner.nodes.read() {
-            Err(e) => return Err(ruisutil::ioerr("lock err", None)),
-            Ok(lkv) => {
-                if let Some(v) = lkv.get(k) {
-                    if v.online() {
-                        return Ok(v.clone());
-                    }
-                }
+    pub async fn find_node(&self, k: &String) -> io::Result<NodeServer> {
+        let lkv = self.inner.nodes.read().await;
+        if let Some(v) = lkv.get(k) {
+            if v.online() {
+                return Ok(v.clone());
             }
         }
         Err(ruisutil::ioerr("node not found", None))
     }
 
-    pub fn put_conn(&self, data: NodeConnMsg, conn: TcpStream) -> io::Result<()> {
-        match &self.inner.nodes.read() {
-            Err(e) => return Err(ruisutil::ioerr("lock err", None)),
-            Ok(lkv) => {
-                if let Some(v) = lkv.get(&data.name) {
-                    v.put_conn(&data.xids, conn)?;
-                }
-            }
-        };
+    pub async fn put_conn(&self, data: NodeConnMsg, conn: TcpStream) -> io::Result<()> {
+        let lkv = self.inner.nodes.read().await;
+        if let Some(v) = lkv.get(&data.name) {
+            v.put_conn(&data.xids, conn).await?;
+        }
         Ok(())
     }
 }

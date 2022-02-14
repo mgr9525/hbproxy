@@ -1,21 +1,11 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    io,
-    ops::Index,
-    path::Path,
-    sync::RwLock,
-    time::Duration,
-};
+use std::{collections::VecDeque, io, path::Path, time::Duration};
 
-use async_std::task;
+use async_std::{sync::RwLock, task};
 use ruisutil::ArcMut;
 
 use crate::{
     app::Application,
-    entity::{
-        conf::ProxyInfoConf,
-        proxy::{ProxyListRep, RuleConfReq},
-    },
+    entity::{conf::ProxyInfoConf, proxy::ProxyListRep},
     utils,
 };
 
@@ -45,19 +35,18 @@ impl ProxyEngine {
     pub async fn wait_proxys_clear(&self) {
         while !self.inner.ctx.done() {
             task::sleep(Duration::from_millis(100)).await;
-            if let Ok(lkv) = self.inner.proxys.read() {
-                if lkv.len() <= 0 {
-                    return;
+            let lkv = self.inner.proxys.read().await;
+            if lkv.len() <= 0 {
+                return;
+            }
+            let mut alled = true;
+            for v in lkv.iter() {
+                if !v.stopd() {
+                    alled = false;
                 }
-                let mut alled=true;
-                for v in lkv.iter(){
-                    if !v.stopd(){
-                        alled=false;
-                    }
-                }
-                if alled{
-                    return;
-                }
+            }
+            if alled {
+                return;
             }
         }
     }
@@ -82,7 +71,8 @@ impl ProxyEngine {
                 None,
             ));
         }
-        if let Ok(lkv) = self.inner.proxys.read() {
+        {
+            let lkv = self.inner.proxys.read().await;
             let mut itr = lkv.iter();
             while !self.inner.ctx.done() {
                 match itr.next() {
@@ -185,7 +175,7 @@ impl ProxyEngine {
             },
             proxy_port: gotoport,
         };
-        match self.add_check(&data) {
+        match self.add_check(&data).await {
             0 => {}
             1 => return Err(ruisutil::ioerr("proxy name is exsit", None)),
             2 => return Err(ruisutil::ioerr("proxy port is exsit", None)),
@@ -194,20 +184,17 @@ impl ProxyEngine {
         self.add_proxy(data).await
     }
 
-    pub fn add_check(&self, cfg: &RuleCfg) -> i8 {
-        if let Ok(lkv) = self.inner.proxys.read() {
-            for v in lkv.iter() {
-                if v.conf().name == cfg.name {
-                    return 1;
-                }
-                if v.conf().bind_port == cfg.bind_port {
-                    return 2;
-                }
+    pub async fn add_check(&self, cfg: &RuleCfg) -> i8 {
+        let lkv = self.inner.proxys.read().await;
+        for v in lkv.iter() {
+            if v.conf().name == cfg.name {
+                return 1;
             }
-            0
-        } else {
-            -1
+            if v.conf().bind_port == cfg.bind_port {
+                return 2;
+            }
         }
+        0
     }
     pub async fn add_proxy(&self, cfg: RuleCfg) -> io::Result<()> {
         let proxy = RuleProxy::new(
@@ -217,47 +204,36 @@ impl ProxyEngine {
             cfg,
         );
         proxy.start().await?;
-        if let Ok(mut lkv) = self.inner.proxys.write() {
-            lkv.push_back(proxy);
-            Ok(())
-        } else {
-            Err(ruisutil::ioerr("lock err", None))
-        }
+        let mut lkv = self.inner.proxys.write().await;
+        lkv.push_back(proxy);
+        Ok(())
     }
 
-    pub fn show_list(&self) -> io::Result<ProxyListRep> {
+    pub async fn show_list(&self) -> io::Result<ProxyListRep> {
         let mut rts = ProxyListRep { list: Vec::new() };
-        match &self.inner.proxys.read() {
-            Err(e) => return Err(ruisutil::ioerr("lock err", None)),
-            Ok(lkv) => {
-                for v in lkv.iter() {
-                    // v.conf().name
-                    rts.list.push(crate::entity::proxy::ProxyListIt {
-                        name: v.conf().name.clone(),
-                        remote: format!("{}:{}", v.conf().bind_host.as_str(), v.conf().bind_port),
-                        proxy: format!("{}:{}", v.conf().proxy_host.as_str(), v.conf().proxy_port),
-                        status: v.status(),
-                        msg: v.msg(),
-                    });
-                }
-            }
-        };
+        let lkv = self.inner.proxys.read().await;
+        for v in lkv.iter() {
+            // v.conf().name
+            rts.list.push(crate::entity::proxy::ProxyListIt {
+                name: v.conf().name.clone(),
+                remote: format!("{}:{}", v.conf().bind_host.as_str(), v.conf().bind_port),
+                proxy: format!("{}:{}", v.conf().proxy_host.as_str(), v.conf().proxy_port),
+                status: v.status(),
+                msg: v.msg(),
+            });
+        }
         Ok(rts)
     }
-    pub fn remove(&self, name: &String) -> io::Result<()> {
-        if let Ok(mut lkv) = self.inner.proxys.write() {
-            lkv.retain(|v| {
-                if v.conf().name.eq(name) {
-                    v.stop();
-                    log::debug!("proxy remove:{}!!!!", name.as_str());
-                    true
-                } else {
-                    false
-                }
-            });
-            Ok(())
-        } else {
-            Err(ruisutil::ioerr("lock err", None))
-        }
+    pub async fn remove(&self, name: &String) {
+        let mut lkv = self.inner.proxys.write().await;
+        lkv.retain(|v| {
+            if v.conf().name.eq(name) {
+                v.stop();
+                log::debug!("proxy remove:{}!!!!", name.as_str());
+                true
+            } else {
+                false
+            }
+        });
     }
 }

@@ -1,9 +1,4 @@
-use std::{
-    io,
-    net::Shutdown,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::io;
 
 crate::cfg_unix! {
   use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
@@ -137,13 +132,7 @@ impl RuleProxy {
                 }
             }
         }
-        while !self.inner.ctx.done() {
-            match self.inner.egn.remove(&self.inner.cfg.name) {
-                Err(e) => log::error!("end remove proxy err:{}", e),
-                Ok(_) => break,
-            };
-            task::sleep(Duration::from_millis(100)).await;
-        }
+        self.inner.egn.remove(&self.inner.cfg.name).await;
         log::debug!(
             "{}:{} proxy stop!!",
             self.inner.cfg.bind_host.as_str(),
@@ -153,7 +142,7 @@ impl RuleProxy {
         Ok(())
     }
     async fn run_cli(&self, conn: TcpStream) {
-        match self.inner.node.find_node(&self.inner.cfg.proxy_host) {
+        match self.inner.node.find_node(&self.inner.cfg.proxy_host).await {
             Err(e) => {
                 log::error!("{} proxy err:{}", self.inner.cfg.proxy_host.as_str(), e);
                 let addrs = format!(

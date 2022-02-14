@@ -1,5 +1,4 @@
-
-use std::{io, mem, sync::Arc};
+use std::{io, mem};
 
 use async_std::net::TcpStream;
 use ruisutil::bytes::{self, ByteBoxBuf};
@@ -25,15 +24,15 @@ impl MsgInfo {
     }
 }
 
-pub const MaxOther: u64 = 1024 * 1024 * 20; //20M
-pub const MaxHeads: u64 = 1024 * 1024 * 100; //100M
-pub const MaxBodys: u64 = 1024 * 1024 * 1024; //1G
+// pub const MaxOther: u64 = 1024 * 1024 * 20; //20M
+pub const MAX_HEADS: u64 = 1024 * 1024 * 100; //100M
+pub const MAX_BODYS: u64 = 1024 * 1024 * 1024; //1G
 
 pub struct Messages {
-  pub control: i32,
-  pub cmds: Option<String>,
-  pub heads: Option<Box<[u8]>>,
-  pub bodys: Option<Box<[u8]>>,
+    pub control: i32,
+    pub cmds: Option<String>,
+    pub heads: Option<Box<[u8]>>,
+    pub bodys: Option<Box<[u8]>>,
 }
 pub struct Message {
     pub version: u16,
@@ -77,10 +76,10 @@ pub async fn parse_msg(ctxs: &ruisutil::Context, conn: &mut TcpStream) -> io::Re
     let infoln = mem::size_of::<MsgInfo>();
     let bts = ruisutil::tcp_read_async(ctxs, conn, infoln).await?;
     ruisutil::byte2struct(&mut info, &bts[..])?;
-    if (info.lenHead) as u64 > MaxHeads {
+    if (info.lenHead) as u64 > MAX_HEADS {
         return Err(ruisutil::ioerr("bytes2 out limit!!", None));
     }
-    if (info.lenBody) as u64 > MaxBodys {
+    if (info.lenBody) as u64 > MAX_BODYS {
         return Err(ruisutil::ioerr("bytes3 out limit!!", None));
     }
 
@@ -153,8 +152,12 @@ pub async fn send_msg(
     Ok(())
 }
 
-pub async fn send_msgs(ctxs: &ruisutil::Context,conn: &mut TcpStream,msg:Messages) -> io::Result<()> {
-  send_msg(ctxs,conn,msg.control,msg.cmds,msg.heads,msg.bodys).await
+pub async fn send_msgs(
+    ctxs: &ruisutil::Context,
+    conn: &mut TcpStream,
+    msg: Messages,
+) -> io::Result<()> {
+    send_msg(ctxs, conn, msg.control, msg.cmds, msg.heads, msg.bodys).await
 }
 pub async fn send_msg_buf(
     ctxs: &ruisutil::Context,

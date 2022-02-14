@@ -1,11 +1,14 @@
 use std::{
     collections::{HashMap, VecDeque},
     io,
-    sync::{Mutex, RwLock},
     time::Duration,
 };
 
-use async_std::{net::TcpStream, task};
+use async_std::{
+    net::TcpStream,
+    sync::{Mutex, RwLock},
+    task,
+};
 
 use crate::{
     entity::node::NodeConnMsg,
@@ -134,9 +137,9 @@ impl NodeServer {
         while !self.inner.ctx.done() {
             if !self.inner.shuted {
                 let mut msg = None;
-                match self.inner.msgs.lock() {
-                    Err(e) => log::error!("run_send err:{}", e),
-                    Ok(mut lkv) => msg = lkv.pop_front(),
+                {
+                    let mut lkv = self.inner.msgs.lock().await;
+                    msg = lkv.pop_front();
                 }
                 if let Some(v) = msg {
                     if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
@@ -160,19 +163,18 @@ impl NodeServer {
             }
         }
     }
-    async fn on_msg(&self, mut msg: utils::msg::Message) {
+    async fn on_msg(&self, msg: utils::msg::Message) {
         match msg.control {
             0 => {
                 self.inner.ctmout.reset();
                 log::debug!("{} heart", self.inner.cfg.name.as_str());
-                if let Ok(mut lkv) = self.inner.msgs.lock() {
-                    lkv.push_front(Messages {
-                        control: 0,
-                        cmds: Some("heart".into()),
-                        heads: None,
-                        bodys: None,
-                    })
-                }
+                let mut lkv = self.inner.msgs.lock().await;
+                lkv.push_front(Messages {
+                    control: 0,
+                    cmds: Some("heart".into()),
+                    heads: None,
+                    bodys: None,
+                })
             }
             _ => {}
         }
@@ -186,26 +188,26 @@ impl NodeServer {
         }
     }
 
-    pub fn put_conn(&self, xids: &String, conn: TcpStream) -> io::Result<()> {
-        if let Ok(lkv) = self.inner.waits.read() {
-            if let Some(mkv) = lkv.get(xids) {
-                if let Ok(mut v) = mkv.lock() {
-                    *v = Some(conn);
-                    return Ok(());
-                }
-            }
+    pub async fn put_conn(&self, xids: &String, conn: TcpStream) -> io::Result<()> {
+        let lkv = self.inner.waits.read().await;
+        if let Some(mkv) = lkv.get(xids) {
+            let mut v = mkv.lock().await;
+            *v = Some(conn);
+            return Ok(());
         }
         Err(ruisutil::ioerr("timeout", None))
     }
     pub async fn wait_conn(&self, port: i32) -> io::Result<TcpStream> {
         // let ins = unsafe { self.inner.muts() };
         let mut xids = format!("{}-{}", xid::new().to_string().as_str(), port);
-        if let Ok(lkv) = self.inner.waits.read() {
+        {
+            let lkv = self.inner.waits.read().await;
             while lkv.contains_key(&xids) {
                 xids = format!("{}-{}", xid::new().to_string().as_str(), port);
             }
         }
-        if let Ok(mut lkv) = self.inner.waits.write() {
+        {
+            let mut lkv = self.inner.waits.write().await;
             lkv.insert(xids.clone(), Mutex::new(None));
         }
         let bds = match serde_json::to_vec(&NodeConnMsg {
@@ -213,24 +215,18 @@ impl NodeServer {
             xids: xids.clone(),
             port: port,
         }) {
-            Err(e) => return Err(ruisutil::ioerr("to json err", None)),
+            Err(_) => return Err(ruisutil::ioerr("to json err", None)),
             Ok(v) => v,
         };
         if !self.inner.shuted {
-            match self.inner.msgs.lock() {
-                Err(e) => {
-                    log::error!("wait_conn send_msg {} err:{}", xids.as_str(), e);
-                    if let Ok(mut lkv) = self.inner.waits.write() {
-                        lkv.remove(&xids);
-                    }
-                    return Err(ruisutil::ioerr("lock err", None));
-                }
-                Ok(mut lkv) => lkv.push_back(Messages {
+            {
+                let mut lkv = self.inner.msgs.lock().await;
+                lkv.push_back(Messages {
                     control: 1,
                     cmds: None,
                     heads: None,
                     bodys: Some(bds.into_boxed_slice()),
-                }),
+                });
             }
 
             let ctx = ruisutil::Context::with_timeout(
@@ -240,25 +236,21 @@ impl NodeServer {
             let mut rets = None;
             while !ctx.done() {
                 let mut hased = false;
-                if let Ok(lkv) = self.inner.waits.read() {
+                {
+                    let lkv = self.inner.waits.read().await;
                     if let Some(mkv) = lkv.get(&xids) {
-                        if let Ok(mut v) = mkv.lock() {
-                            if let Some(_) = &mut *v {
-                                hased = true;
-                            }
+                        let mut v = mkv.lock().await;
+                        if let Some(_) = &mut *v {
+                            hased = true;
                         }
                     }
                 }
                 if hased {
-                    if let Ok(mut lkv) = self.inner.waits.write() {
-                        if let Some(mkv) = lkv.remove(&xids) {
-                            if let Ok(mut v) = mkv.lock() {
-                                // rets=*v;
-                                // *v=None;
-                                rets = std::mem::replace(&mut v, None);
-                                break;
-                            }
-                        }
+                    let mut lkv = self.inner.waits.write().await;
+                    if let Some(mkv) = lkv.remove(&xids) {
+                        let mut v = mkv.lock().await;
+                        rets = std::mem::replace(&mut v, None);
+                        break;
                     }
                 }
                 task::sleep(Duration::from_millis(10)).await;
@@ -267,9 +259,8 @@ impl NodeServer {
                 return Ok(conn);
             }
         }
-        if let Ok(mut lkv) = self.inner.waits.write() {
-            lkv.remove(&xids);
-        }
+        let mut lkv = self.inner.waits.write().await;
+        lkv.remove(&xids);
         Err(ruisutil::ioerr("timeout", None))
     }
 }

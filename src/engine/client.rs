@@ -1,14 +1,6 @@
-use std::{
-    collections::LinkedList,
-    io,
-    net::Shutdown,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{collections::LinkedList, io, time::Duration};
 
-use async_std::{net::TcpStream, task};
-use futures::AsyncReadExt;
-use ruisutil::{bytes::ByteBoxBuf, ArcMut};
+use async_std::{net::TcpStream, sync::Mutex, task};
 
 use crate::{
     app::Application,
@@ -126,9 +118,9 @@ impl NodeClient {
         while !self.inner.ctx.done() {
             if !self.inner.shuted {
                 let mut msg = None;
-                match self.inner.msgs.lock() {
-                    Err(e) => log::error!("run_send err:{}", e),
-                    Ok(mut lkv) => msg = lkv.pop_front(),
+                {
+                    let mut lkv = self.inner.msgs.lock().await;
+                    msg=lkv.pop_front();
                 }
                 if let Some(v) = msg {
                     if let Some(conn) = &mut ins.conn {
@@ -218,14 +210,13 @@ impl NodeClient {
                 self.close();
             }
             if self.inner.ctms.tick() {
-                if let Ok(mut lkv) = self.inner.msgs.lock() {
-                    lkv.push_front(Messages {
-                        control: 0,
-                        cmds: Some("heart".into()),
-                        heads: None,
-                        bodys: None,
-                    })
-                }
+                let mut lkv = self.inner.msgs.lock().await;
+                lkv.push_front(Messages {
+                    control: 0,
+                    cmds: Some("heart".into()),
+                    heads: None,
+                    bodys: None,
+                })
             }
         }
     }
@@ -238,7 +229,7 @@ impl NodeClient {
             1 => {
                 if let Some(bds) = msg.bodys {
                     let data: NodeConnMsg = match serde_json::from_slice(&bds) {
-                        Err(e) => return,
+                        Err(_) => return,
                         Ok(v) => v,
                     };
                     log::debug!("need new conn:{}", data.xids.as_str());
