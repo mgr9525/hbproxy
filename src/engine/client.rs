@@ -21,7 +21,7 @@ pub struct NodeClient {
 struct Inner {
     ctx: ruisutil::Context,
     cfg: NodeClientCfg,
-    conn: Option<TcpStream>,
+    conn: TcpStream,
     shuted: bool,
     conntm: ruisutil::Timer,
     ctms: ruisutil::Timer,
@@ -32,12 +32,12 @@ struct Inner {
 }
 
 impl NodeClient {
-    pub fn new(ctx: ruisutil::Context, cfg: NodeClientCfg) -> Self {
+    pub fn new(ctx: ruisutil::Context, cfg: NodeClientCfg, conn: TcpStream) -> Self {
         Self {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ctx,
                 cfg: cfg,
-                conn: None,
+                conn: conn,
                 shuted: true,
                 conntm: ruisutil::Timer::new(Duration::from_secs(2)),
                 ctms: ruisutil::Timer::new(Duration::from_secs(20)),
@@ -54,10 +54,8 @@ impl NodeClient {
         }
         let ins = unsafe { self.inner.muts() };
         ins.shuted = true;
-        if let Some(conn) = &mut ins.conn {
-            if let Err(e) = conn.shutdown(std::net::Shutdown::Both) {
-                log::error!("close shutdown err:{}", e);
-            }
+        if let Err(e) = ins.conn.shutdown(std::net::Shutdown::Both) {
+            log::error!("close shutdown err:{}", e);
         }
     }
     pub async fn start(self) -> io::Result<()> {
@@ -85,28 +83,26 @@ impl NodeClient {
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
             if !self.inner.shuted {
-                if let Some(conn) = &mut ins.conn {
-                    match utils::msg::parse_msg(&self.inner.ctx, conn).await {
-                        Err(e) => {
-                            log::error!(
-                                "NodeClient({}) parse_msg err:{:?}",
-                                self.inner.cfg.name.as_str(),
-                                e
-                            );
-                            // self.stop();
-                            self.close();
-                            log::debug!("NodeClient({}) close!!", self.inner.cfg.name.as_str());
-                            task::sleep(Duration::from_millis(100)).await;
-                        }
-                        Ok(v) => {
-                            // self.push(data);
-                            // self.inner.room.push(data);
-                            let c = self.clone();
-                            // task::spawn(c.on_msg(v));
-                            log::debug!("run_recv msg ctrl:{}", v.control);
-                            task::spawn(async move { c.on_msg(v).await });
-                            continue;
-                        }
+                match utils::msg::parse_msg(&self.inner.ctx, &mut ins.conn).await {
+                    Err(e) => {
+                        log::error!(
+                            "NodeClient({}) parse_msg err:{:?}",
+                            self.inner.cfg.name.as_str(),
+                            e
+                        );
+                        // self.stop();
+                        self.close();
+                        log::debug!("NodeClient({}) close!!", self.inner.cfg.name.as_str());
+                        task::sleep(Duration::from_millis(100)).await;
+                    }
+                    Ok(v) => {
+                        // self.push(data);
+                        // self.inner.room.push(data);
+                        let c = self.clone();
+                        // task::spawn(c.on_msg(v));
+                        log::debug!("run_recv msg ctrl:{}", v.control);
+                        task::spawn(async move { c.on_msg(v).await });
+                        continue;
                     }
                 }
             }
@@ -120,31 +116,71 @@ impl NodeClient {
                 let mut msg = None;
                 {
                     let mut lkv = self.inner.msgs.lock().await;
-                    msg=lkv.pop_front();
+                    msg = lkv.pop_front();
                 }
                 if let Some(v) = msg {
-                    if let Some(conn) = &mut ins.conn {
-                        if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, conn, v).await {
-                            log::error!("run_send send_msgs err:{}", e);
-                            /* if let Ok(mut lkv) = self.inner.waits.write() {
-                                lkv.remove(&xids);
-                            } */
-                        } else {
-                            // log::debug!("run_send send_msgs ok:{}", ctrl);
-                            continue;
-                        }
+                    if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
+                        log::error!("run_send send_msgs err:{}", e);
+                        /* if let Ok(mut lkv) = self.inner.waits.write() {
+                            lkv.remove(&xids);
+                        } */
+                    } else {
+                        // log::debug!("run_send send_msgs ok:{}", ctrl);
+                        continue;
                     }
                 }
             }
             task::sleep(Duration::from_millis(10)).await;
         }
     }
-    async fn reconn(&self) {
-        log::debug!("NodeClient reconn start:{}", self.inner.cfg.name.as_str());
+
+    pub async fn runs(name: String) -> io::Result<()> {
+        let mut cfg = NodeClientCfg {
+            name: name,
+            token: None,
+        };
+        let mut conns = None;
+        while !Application::context().done() {
+            match Self::connect(&cfg).await {
+                Ok((conn, data)) => {
+                    log::debug!("NodeClient reconn mv conn:{}", cfg.name.as_str());
+                    cfg.token = Some(data.token.clone());
+                    conns = Some(conn);
+                    break;
+                }
+                Err(e) => {
+                    if e.kind() == io::ErrorKind::AlreadyExists {
+                        log::error!("已存在相同名称的节点");
+                        task::sleep(Duration::from_secs(1)).await;
+                        Application::context().stop();
+                        return Err(e);
+                    } else if e.kind() == io::ErrorKind::InvalidInput {
+                        log::error!("授权失败,请检查key是否正确");
+                        task::sleep(Duration::from_secs(1)).await;
+                        if !Application::get().keyignore {
+                            Application::context().stop();
+                            return Err(e);
+                        }
+                        task::sleep(Duration::from_secs(3)).await;
+                    } else {
+                        log::error!("connect err:{}", e);
+                        task::sleep(Duration::from_secs(2)).await;
+                    }
+                }
+            }
+        }
+        if let Some(conn) = conns {
+            let cli = Self::new(Application::context(), cfg,conn);
+            cli.start().await?;
+        }
+        Ok(())
+    }
+    async fn connect(cfg: &NodeClientCfg) -> io::Result<(TcpStream, RegNodeRep)> {
         let mut req = Application::new_req(1, "NodeJoin", false);
         let data = RegNodeReq {
-            name: self.inner.cfg.name.clone(),
-            token: self.inner.cfg.token.clone(),
+            name: cfg.name.clone(),
+            token: cfg.token.clone(),
+            version: Some(crate::app::VERSION.into()),
         };
         match req.do_json(None, &data).await {
             Err(e) => {
@@ -153,16 +189,55 @@ impl NodeClient {
             }
             Ok(mut res) => {
                 if res.get_code() == utils::HbtpTokenErr {
+                    return Err(ruisutil::ioerr(
+                        "name is exists",
+                        Some(io::ErrorKind::AlreadyExists),
+                    ));
+                }
+                if res.get_code() == hbtp::ResCodeAuth {
+                    return Err(ruisutil::ioerr(
+                        "name is exists",
+                        Some(io::ErrorKind::InvalidInput),
+                    ));
+                }
+                if res.get_code() == hbtp::ResCodeOk {
+                    let data: RegNodeRep = match res.body_json() {
+                        Err(e) => {
+                            log::error!("response body err:{}", e);
+                            return Err(ruisutil::ioerr("json data err", None));
+                        }
+                        Ok(v) => v,
+                    };
+                    return Ok((res.own_conn(), data));
+                } else {
+                    if let Some(bs) = res.get_bodys() {
+                        if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                            log::error!("response err:{}", vs);
+                        }
+                    }
+                }
+            }
+        }
+        Err(ruisutil::ioerr("conn end err", None))
+    }
+    async fn reconn(&self) {
+        log::debug!("NodeClient reconn start:{}", self.inner.cfg.name.as_str());
+        match Self::connect(&self.inner.cfg).await {
+            Ok((conn, data)) => {
+                log::debug!("NodeClient reconn mv conn:{}", self.inner.cfg.name.as_str());
+                let ins = unsafe { self.inner.muts() };
+                self.inner.ctmout.reset();
+                ins.shuted = false;
+                ins.conn = conn;
+                ins.cfg.token = Some(data.token.clone());
+            }
+            Err(e) => {
+                log::debug!("NodeClient reconn err({}):{}", self.inner.cfg.name.as_str(),e);
+                if e.kind() == io::ErrorKind::AlreadyExists {
                     log::error!("已存在相同名称的节点");
                     task::sleep(Duration::from_secs(1)).await;
                     Application::context().stop();
-                    return;
-                }
-                if res.get_code() == hbtp::ResCodeAuth {
-                    /* let keys = match &Application::get().keys {
-                        None => "[nil]",
-                        Some(vs) => vs.as_str(),
-                    }; */
+                } else if e.kind() == io::ErrorKind::InvalidInput {
                     log::error!("授权失败,请检查key是否正确");
                     task::sleep(Duration::from_secs(1)).await;
                     if !Application::get().keyignore {
@@ -170,28 +245,9 @@ impl NodeClient {
                         return;
                     }
                     task::sleep(Duration::from_secs(3)).await;
-                    return;
-                }
-                if res.get_code() == hbtp::ResCodeOk {
-                    let ins = unsafe { self.inner.muts() };
-                    let data: RegNodeRep = match res.body_json() {
-                        Err(e) => {
-                            log::error!("response body err:{}", e);
-                            return;
-                        }
-                        Ok(v) => v,
-                    };
-                    log::debug!("NodeClient reconn mv conn:{}", self.inner.cfg.name.as_str());
-                    self.inner.ctmout.reset();
-                    ins.shuted = false;
-                    ins.conn = Some(res.own_conn());
-                    ins.cfg.token = Some(data.token.clone());
                 } else {
-                    if let Some(bs) = res.get_bodys() {
-                        if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                            log::error!("response err:{}", vs);
-                        }
-                    }
+                    log::error!("connect err:{}", e);
+                    task::sleep(Duration::from_secs(2)).await;
                 }
             }
         }

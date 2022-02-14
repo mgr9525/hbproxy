@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct RegNodeReq {
     pub name: String,
     pub token: Option<String>,
+    pub version: Option<String>,
 }
 #[derive(Serialize, Deserialize)]
 pub struct RegNodeRep {

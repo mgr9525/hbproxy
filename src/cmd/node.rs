@@ -29,14 +29,7 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         Ok(v) => log::info!("remote version:{}", v.as_str()),
     };
 
-    let cli = engine::NodeClient::new(
-        Application::context(),
-        engine::NodeClientCfg {
-            name: names.into(),
-            token: None,
-        },
-    );
-    match cli.start().await {
+    match engine::NodeClient::runs(names.into()).await {
         Err(e) => {
             log::error!("client run err:{}", e);
             -3
