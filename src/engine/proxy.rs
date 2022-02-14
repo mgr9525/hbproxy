@@ -230,9 +230,9 @@ impl ProxyEngine {
             if v.conf().name.eq(name) {
                 v.stop();
                 log::debug!("proxy remove:{}!!!!", name.as_str());
-                true
-            } else {
                 false
+            } else {
+                true
             }
         });
     }
