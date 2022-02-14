@@ -68,7 +68,6 @@ impl RuleProxy {
             if let Err(e) = c.run().await {
                 log::error!("run err:{}", e);
                 let ins = unsafe { c.inner.muts() };
-                ins.lsr = None;
                 ins.stat = -1;
                 ins.msgs = Some(format!("bind err:{}", e));
             } else {
@@ -139,6 +138,7 @@ impl RuleProxy {
             self.inner.cfg.bind_port
         );
         self.stop();
+        ins.lsr = None;
         Ok(())
     }
     async fn run_cli(&self, conn: TcpStream) {
