@@ -27,4 +27,5 @@ pub struct ProxyInfoConf {
     pub name: Option<String>,
     pub bind: String,
     pub proxy: String,
+    pub localhost: Option<String>,
 }

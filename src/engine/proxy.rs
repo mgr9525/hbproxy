@@ -174,6 +174,7 @@ impl ProxyEngine {
                 gotols[0].to_string()
             },
             proxy_port: gotoport,
+            localhost: cfg.localhost.clone(),
         };
         match self.add_check(&data).await {
             0 => {}

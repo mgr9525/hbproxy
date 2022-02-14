@@ -198,7 +198,7 @@ impl NodeServer {
         }
         Err(ruisutil::ioerr("timeout", None))
     }
-    pub async fn wait_conn(&self, port: i32) -> io::Result<TcpStream> {
+    pub async fn wait_conn(&self, host: &Option<String>, port: i32) -> io::Result<TcpStream> {
         // let ins = unsafe { self.inner.muts() };
         let mut xids = format!("{}-{}", xid::new().to_string().as_str(), port);
         {
@@ -214,6 +214,7 @@ impl NodeServer {
         let bds = match serde_json::to_vec(&NodeConnMsg {
             name: self.inner.cfg.name.clone(),
             xids: xids.clone(),
+            host: host.clone(),
             port: port,
         }) {
             Err(_) => return Err(ruisutil::ioerr("to json err", None)),

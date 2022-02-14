@@ -311,7 +311,11 @@ impl NodeClient {
                         }
                     }
 
-                    let addrs = format!("{}:{}", self.inner.connhost.as_str(), data.port);
+                    let hosts=match &data.host{
+                      None=>self.inner.connhost.as_str(),
+                      Some(v)=>v.as_str(),
+                    };
+                    let addrs = format!("{}:{}", hosts, data.port);
                     let connlc = match TcpStream::connect(addrs.as_str()).await {
                         Ok(v) => v,
                         Err(e) => {

@@ -29,5 +29,6 @@ pub struct NodeConnMsg {
     pub name: String,
     pub xids: String,
     // pub token: String,
+    pub host:Option<String>,
     pub port: i32,
 }

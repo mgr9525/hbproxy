@@ -29,6 +29,7 @@ pub struct RuleCfg {
     pub bind_port: i32,
     pub proxy_host: String,
     pub proxy_port: i32,
+    pub localhost: Option<String>,
 }
 #[derive(Clone)]
 pub struct RuleProxy {
@@ -161,7 +162,7 @@ impl RuleProxy {
                 px.start().await;
             }
             Ok(v) => {
-                let connlc = match v.wait_conn(self.inner.cfg.proxy_port).await {
+                let connlc = match v.wait_conn(&self.inner.cfg.localhost,self.inner.cfg.proxy_port).await {
                     Ok(v) => v,
                     Err(e) => {
                         log::error!("run_cli wait_conn err:{}", e);
