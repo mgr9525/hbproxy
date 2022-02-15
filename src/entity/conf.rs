@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::util::ProxyLimit;
+
 #[derive(Serialize, Deserialize)]
 pub struct ServerConf {
     pub server: ServerInfoConf,
@@ -28,4 +30,5 @@ pub struct ProxyInfoConf {
     pub bind: String,
     pub proxy: String,
     pub localhost: Option<String>,
+    pub limit:Option<ProxyLimit>,
 }

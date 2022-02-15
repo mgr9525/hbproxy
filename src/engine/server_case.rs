@@ -181,6 +181,7 @@ impl ServerCase {
                 proxy_host: data.proxy_host.clone(),
                 proxy_port: data.proxy_port,
                 localhost: None,
+                limit: data.limit.clone(),
             },
         };
         match self.inner.proxy.add_check(&cfg).await {

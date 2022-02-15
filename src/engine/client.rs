@@ -4,7 +4,7 @@ use async_std::{net::TcpStream, sync::Mutex, task};
 
 use crate::{
     app::Application,
-    engine::proxyer::Proxyer,
+    engine::proxyer::{Proxyer, ProxyerCfg},
     entity::node::{NodeConnMsg, RegNodeRep, RegNodeReq},
     utils::{self, msg::Messages},
 };
@@ -329,7 +329,7 @@ impl NodeClient {
                     log::debug!("client Proxyer start on -> {}", addrs.as_str());
                     let px = Proxyer::new(
                         self.inner.ctx.clone(),
-                        addrs.clone(),
+                        ProxyerCfg { ids: addrs,limit:None },
                         res.own_conn(),
                         connlc,
                     );

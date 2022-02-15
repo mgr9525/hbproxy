@@ -1,8 +1,20 @@
-use std::{io, net::Shutdown, sync::Arc, time::Duration};
+use std::{
+    io,
+    net::Shutdown,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use async_std::{net::TcpStream, sync::RwLock, task};
 use futures::AsyncReadExt;
 use ruisutil::{bytes::ByteBoxBuf, ArcMut};
+
+use crate::entity::util::ProxyLimit;
+
+pub struct ProxyerCfg {
+    pub ids: String,
+    pub limit: Option<ProxyLimit>,
+}
 
 #[derive(Clone)]
 pub struct Proxyer {
@@ -10,28 +22,35 @@ pub struct Proxyer {
 }
 struct Inner {
     ctx: ruisutil::Context,
+    cfg: ProxyerCfg,
     conn: TcpStream,
     connlc: TcpStream,
 
-    ids: String,
     bufw: RwLock<ByteBoxBuf>,
     buflcw: RwLock<ByteBoxBuf>,
+    second: Duration,
 
     endr1: bool,
     endr2: bool,
 }
 const PROXY_BUF_SIZE_MAX: usize = 1024 * 1024;
 impl Proxyer {
-    pub fn new(ctx: ruisutil::Context, ids: String, conn: TcpStream, connlc: TcpStream) -> Self {
+    pub fn new(
+        ctx: ruisutil::Context,
+        cfg: ProxyerCfg,
+        conn: TcpStream,
+        connlc: TcpStream,
+    ) -> Self {
         Self {
             inner: ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
+                cfg: cfg,
                 conn: conn,
                 connlc: connlc,
 
-                ids: ids,
                 bufw: RwLock::new(ByteBoxBuf::new()),
                 buflcw: RwLock::new(ByteBoxBuf::new()),
+                second: Duration::from_millis(100),
 
                 endr1: false,
                 endr2: false,
@@ -59,21 +78,21 @@ impl Proxyer {
         }
     }
     pub async fn start(self) {
-        log::debug!("Proxyer({}) start", self.inner.ids.as_str());
+        log::debug!("Proxyer({}) start", self.inner.cfg.ids.as_str());
         let wg = ruisutil::WaitGroup::new();
         let c = self.clone();
         let wgc = wg.clone();
         task::spawn(async move {
             let mut count = 0;
             if let Err(e) = c.read1(&mut count).await {
-                log::warn!("Proxyer({}) read1 err:{}", c.inner.ids.as_str(), e);
+                log::warn!("Proxyer({}) read1 err:{}", c.inner.cfg.ids.as_str(), e);
             }
             // c.closer();
             unsafe { c.inner.muts().endr1 = true };
             std::mem::drop(wgc);
             log::debug!(
                 "Proxyer({}) read1 end!byte count:{}",
-                c.inner.ids.as_str(),
+                c.inner.cfg.ids.as_str(),
                 count
             );
         });
@@ -82,14 +101,14 @@ impl Proxyer {
         task::spawn(async move {
             let mut count = 0;
             if let Err(e) = c.write1(&mut count).await {
-                log::warn!("Proxyer({}) write1 err:{}", c.inner.ids.as_str(), e);
+                log::warn!("Proxyer({}) write1 err:{}", c.inner.cfg.ids.as_str(), e);
             }
             c.closer();
             std::mem::drop(wgc);
-            log::debug!("Proxyer({}) write1 end!", c.inner.ids.as_str());
+            log::debug!("Proxyer({}) write1 end!", c.inner.cfg.ids.as_str());
             log::debug!(
                 "Proxyer({}) write1 end!byte count:{}",
-                c.inner.ids.as_str(),
+                c.inner.cfg.ids.as_str(),
                 count
             );
         });
@@ -98,14 +117,14 @@ impl Proxyer {
         task::spawn(async move {
             let mut count = 0;
             if let Err(e) = c.read2(&mut count).await {
-                log::warn!("Proxyer({}) read2 err:{}", c.inner.ids.as_str(), e);
+                log::warn!("Proxyer({}) read2 err:{}", c.inner.cfg.ids.as_str(), e);
             }
             // c.closer();
             unsafe { c.inner.muts().endr2 = true };
             std::mem::drop(wgc);
             log::debug!(
                 "Proxyer({}) read2 end!byte count:{}",
-                c.inner.ids.as_str(),
+                c.inner.cfg.ids.as_str(),
                 count
             );
         });
@@ -114,20 +133,20 @@ impl Proxyer {
         task::spawn(async move {
             let mut count = 0;
             if let Err(e) = c.write2(&mut count).await {
-                log::warn!("Proxyer({}) write2 err:{}", c.inner.ids.as_str(), e);
+                log::warn!("Proxyer({}) write2 err:{}", c.inner.cfg.ids.as_str(), e);
             }
             c.closelcr();
             std::mem::drop(wgc);
             log::debug!(
                 "Proxyer({}) write2 end!byte count:{}",
-                c.inner.ids.as_str(),
+                c.inner.cfg.ids.as_str(),
                 count
             );
         });
 
         wg.waits().await;
         self.stop();
-        log::debug!("Proxyer({}) end", self.inner.ids.as_str());
+        log::debug!("Proxyer({}) end", self.inner.cfg.ids.as_str());
     }
     async fn max_wait(&self, fs: i8) {
         while !self.inner.ctx.done() {
@@ -143,6 +162,13 @@ impl Proxyer {
         }
     }
     pub async fn read1(&self, count: &mut usize) -> io::Result<()> {
+        let mut ts = SystemTime::now();
+        let mut ln = 0;
+        let lmt = if let Some(lmt) = &self.inner.cfg.limit {
+            Some(lmt.up * 1024 / 10)
+        } else {
+            None
+        };
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
             let mut buf: Box<[u8]> = vec![0u8; 10240].into_boxed_slice();
@@ -150,15 +176,44 @@ impl Proxyer {
             if n <= 0 {
                 return Err(ruisutil::ioerr("read size=0", None));
             }
-            self.max_wait(1).await;
-            let mut lkv = self.inner.buflcw.write().await;
-            lkv.pushs(Arc::new(buf), 0, n);
-            *count += n;
+            {
+                self.max_wait(1).await;
+                let mut lkv = self.inner.buflcw.write().await;
+                lkv.pushs(Arc::new(buf), 0, n);
+                *count += n;
+            }
+            if let Some(lmv) = lmt {
+                ln += n;
+                if lmv > 0 && ln >= lmv {
+                    if let Ok(t) = SystemTime::now().duration_since(ts) {
+                        if t < self.inner.second {
+                            let wt = self.inner.second - t;
+                            log::debug!(
+                                "read1 limit({}b/100ms) up ({}) uses:{}ms, waits:{}ms",
+                                lmv,
+                                ln,
+                                t.as_millis(),
+                                wt.as_millis()
+                            );
+                            task::sleep(wt).await;
+                        }
+                    };
+                    ts = SystemTime::now();
+                    ln = 0;
+                }
+            }
         }
         Ok(())
     }
 
     pub async fn write1(&self, count: &mut usize) -> io::Result<()> {
+        let mut ts = SystemTime::now();
+        let mut ln = 0;
+        let lmt = if let Some(lmt) = &self.inner.cfg.limit {
+            Some(lmt.down * 1024 / 10)
+        } else {
+            None
+        };
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
             {
@@ -176,8 +231,28 @@ impl Proxyer {
                 lkv.pull()
             };
             if let Some(v) = bts {
+                ts = SystemTime::now();
                 ruisutil::tcp_write_async(&self.inner.ctx, &mut ins.conn, &v).await?;
                 *count += v.len();
+                if let Some(lmv) = lmt {
+                    ln += v.len();
+                    if lmv > 0 && ln >= lmv {
+                        if let Ok(t) = SystemTime::now().duration_since(ts) {
+                            if t < self.inner.second {
+                                let wt = self.inner.second - t;
+                                log::debug!(
+                                    "write1 limit({}b/100ms) down ({}) uses:{}ms, waits:{}ms",
+                                    lmv,
+                                    ln,
+                                    t.as_millis(),
+                                    wt.as_millis()
+                                );
+                                task::sleep(wt).await;
+                            }
+                        };
+                        ln = 0;
+                    }
+                }
             } else if self.inner.endr2 {
                 break;
             } else {

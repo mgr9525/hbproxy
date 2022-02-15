@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::util::ProxyLimit;
+
 #[derive(Serialize, Deserialize)]
 pub struct RuleConfReq {
     pub name: Option<String>,
@@ -7,6 +9,7 @@ pub struct RuleConfReq {
     pub bind_port: i32,
     pub proxy_host: String,
     pub proxy_port: i32,
+    pub limit:Option<ProxyLimit>,
 }
 
 #[derive(Serialize, Deserialize)]

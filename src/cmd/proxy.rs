@@ -106,6 +106,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             gotols[0].to_string()
         },
         proxy_port: gotoport,
+        limit:None,
     };
     let mut req = Application::new_reqs(3, "ProxyAdd");
     match req.do_json(None, &data).await {

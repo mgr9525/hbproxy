@@ -2,7 +2,10 @@ use std::{collections::HashMap, io};
 
 use async_std::{net::TcpStream, sync::RwLock, task};
 
-use crate::{entity::node::{NodeConnMsg, NodeListRep, RegNodeReq, ProxyGoto}, engine::proxyer::Proxyer};
+use crate::{
+    engine::proxyer::{Proxyer, ProxyerCfg},
+    entity::node::{NodeConnMsg, NodeListRep, ProxyGoto, RegNodeReq},
+};
 
 use super::{NodeServer, NodeServerCfg};
 
@@ -134,7 +137,15 @@ impl NodeEngine {
                     }
                 };
                 log::debug!("rule Proxyer start on -> {}", addrs.as_str());
-                let px = Proxyer::new(self.inner.ctx.clone(), addrs.clone(), conn, connlc);
+                let px = Proxyer::new(
+                    self.inner.ctx.clone(),
+                    ProxyerCfg {
+                        ids: addrs,
+                        limit: data.limit.clone(),
+                    },
+                    conn,
+                    connlc,
+                );
                 px.start().await;
             }
             Ok(v) => {
@@ -147,7 +158,10 @@ impl NodeEngine {
                 };
                 let px = Proxyer::new(
                     self.inner.ctx.clone(),
-                    format!("{}:{}", data.proxy_host.as_str(), data.proxy_port),
+                    ProxyerCfg {
+                        ids: format!("{}:{}", data.proxy_host.as_str(), data.proxy_port),
+                        limit: data.limit.clone(),
+                    },
                     conn,
                     connlc,
                 );

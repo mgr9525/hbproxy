@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::util::ProxyLimit;
+
 #[derive(Serialize, Deserialize)]
 pub struct RegNodeReq {
     pub name: String,
@@ -38,4 +40,5 @@ pub struct ProxyGoto {
   pub proxy_host: String,
   pub proxy_port: i32,
   pub localhost: Option<String>,
+  pub limit:Option<ProxyLimit>,
 }
