@@ -22,3 +22,10 @@ pub struct ProxyListIt {
 pub struct ProxyListRep {
     pub list: Vec<ProxyListIt>,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct ProxyGoto {
+  pub proxy_host: String,
+  pub proxy_port: i32,
+  pub localhost: Option<String>,
+}

@@ -10,7 +10,7 @@ use crate::{
     engine::{NodeEngine, NodeServerCfg, ProxyEngine, RuleCfg},
     entity::{
         node::{NodeConnMsg, RegNodeRep, RegNodeReq},
-        proxy::RuleConfReq,
+        proxy::{RuleConfReq, ProxyGoto},
     },
     utils,
 };
@@ -149,6 +149,11 @@ impl ServerCase {
     pub async fn proxy_reload(&self, c: hbtp::Context) -> io::Result<()> {
         self.inner.proxy.reload().await?;
         c.res_string(hbtp::ResCodeOk, "ok").await
+    }
+    pub async fn proxy_goto(&self, c: hbtp::Context) -> io::Result<()> {
+      let data: ProxyGoto = c.body_json()?;
+        c.res_string(hbtp::ResCodeOk, "ok").await?;
+        self.inner.proxy.goto(data,c.own_conn()).await
     }
 
     pub async fn proxy_add(&self, c: hbtp::Context) -> io::Result<()> {
