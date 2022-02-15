@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, io, path::Path, time::Duration};
+use std::{collections::HashMap, io, path::Path, time::Duration};
 
 use async_std::{sync::RwLock, task};
 use ruisutil::ArcMut;
@@ -18,7 +18,7 @@ pub struct ProxyEngine {
 struct Inner {
     ctx: ruisutil::Context,
     node: NodeEngine,
-    proxys: RwLock<VecDeque<RuleProxy>>,
+    proxys: RwLock<HashMap<String, RuleProxy>>,
 }
 
 impl ProxyEngine {
@@ -27,7 +27,7 @@ impl ProxyEngine {
             inner: ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
                 node: node,
-                proxys: RwLock::new(VecDeque::new()),
+                proxys: RwLock::new(HashMap::new()),
             }),
         }
     }
@@ -40,7 +40,7 @@ impl ProxyEngine {
                 return;
             }
             let mut alled = true;
-            for v in lkv.iter() {
+            for (_, v) in lkv.iter() {
                 if !v.stopd() {
                     alled = false;
                 }
@@ -73,14 +73,8 @@ impl ProxyEngine {
         }
         {
             let lkv = self.inner.proxys.read().await;
-            let mut itr = lkv.iter();
-            while !self.inner.ctx.done() {
-                match itr.next() {
-                    None => break,
-                    Some(v) => {
-                        v.stop();
-                    }
-                }
+            for (_, v) in lkv.iter() {
+                v.stop();
             }
         }
         self.wait_proxys_clear().await;
@@ -105,25 +99,21 @@ impl ProxyEngine {
 
     async fn load_confs(&self, dpth: &Path) -> io::Result<()> {
         let rs: io::Result<Vec<ProxyInfoConf>> = utils::ymlfile(&dpth);
-        let mut vsok = false;
         match rs {
             Err(e) => log::warn!("load confs faild:{}", e),
             Ok(vs) => {
-                vsok = true;
                 for v in vs {
                     self.load_conf(v).await?;
                 }
                 return Ok(());
             }
         }
-        if !vsok {
-            let rs: io::Result<ProxyInfoConf> = utils::ymlfile(&dpth);
-            match rs {
-                Err(e) => log::warn!("load conf faild:{}", e),
-                Ok(v) => {
-                    self.load_conf(v).await?;
-                    return Ok(());
-                }
+        let rs: io::Result<ProxyInfoConf> = utils::ymlfile(&dpth);
+        match rs {
+            Err(e) => log::warn!("load conf faild:{}", e),
+            Ok(v) => {
+                self.load_conf(v).await?;
+                return Ok(());
             }
         }
         Err(ruisutil::ioerr("conf yml err", None))
@@ -187,17 +177,20 @@ impl ProxyEngine {
 
     pub async fn add_check(&self, cfg: &RuleCfg) -> i8 {
         let lkv = self.inner.proxys.read().await;
-        for v in lkv.iter() {
-            if v.conf().name == cfg.name {
-                return 1;
-            }
-            if v.conf().bind_port == cfg.bind_port {
-                return 2;
+        if let Some(v) = lkv.get(&cfg.name) {
+            if !v.stopd() {
+                if v.conf().name == cfg.name {
+                    return 1;
+                }
+                if v.conf().bind_port == cfg.bind_port {
+                    return 2;
+                }
             }
         }
         0
     }
     pub async fn add_proxy(&self, cfg: RuleCfg) -> io::Result<()> {
+        let nms = cfg.name.clone();
         let proxy = RuleProxy::new(
             self.inner.ctx.clone(),
             self.clone(),
@@ -206,14 +199,14 @@ impl ProxyEngine {
         );
         proxy.start().await?;
         let mut lkv = self.inner.proxys.write().await;
-        lkv.push_back(proxy);
+        lkv.insert(nms, proxy);
         Ok(())
     }
 
     pub async fn show_list(&self) -> io::Result<ProxyListRep> {
         let mut rts = ProxyListRep { list: Vec::new() };
         let lkv = self.inner.proxys.read().await;
-        for v in lkv.iter() {
+        for (_, v) in lkv.iter() {
             // v.conf().name
             rts.list.push(crate::entity::proxy::ProxyListIt {
                 name: v.conf().name.clone(),
@@ -227,14 +220,9 @@ impl ProxyEngine {
     }
     pub async fn remove(&self, name: &String) {
         let mut lkv = self.inner.proxys.write().await;
-        lkv.retain(|v| {
-            if v.conf().name.eq(name) {
-                v.stop();
-                log::debug!("proxy remove:{}!!!!", name.as_str());
-                false
-            } else {
-                true
-            }
-        });
+        if let Some(v) = lkv.remove(name) {
+            v.stop();
+            log::debug!("proxy remove:{}!!!!", name.as_str());
+        }
     }
 }
