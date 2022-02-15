@@ -15,6 +15,7 @@ pub struct ServerInfoConf {
     pub key: Option<String>,
     pub log_path: Option<String>,
     pub proxys_path: Option<String>,
+    pub key_time_check: Option<bool>,
 }
 #[derive(Serialize, Deserialize)]
 pub struct ApiServerInfoConf {

@@ -28,7 +28,7 @@ struct Inner {
 
     bufw: RwLock<ByteBoxBuf>,
     buflcw: RwLock<ByteBoxBuf>,
-    second: Duration,
+    speedtm: Duration,
 
     endr1: bool,
     endr2: bool,
@@ -50,7 +50,7 @@ impl Proxyer {
 
                 bufw: RwLock::new(ByteBoxBuf::new()),
                 buflcw: RwLock::new(ByteBoxBuf::new()),
-                second: Duration::from_millis(100),
+                speedtm: Duration::from_millis(100),
 
                 endr1: false,
                 endr2: false,
@@ -186,8 +186,8 @@ impl Proxyer {
                 ln += n;
                 if lmv > 0 && ln >= lmv {
                     if let Ok(t) = SystemTime::now().duration_since(ts) {
-                        if t < self.inner.second {
-                            let wt = self.inner.second - t;
+                        if t < self.inner.speedtm {
+                            let wt = self.inner.speedtm - t;
                             log::debug!(
                                 "read1 limit({}b/100ms) up ({}) uses:{}ms, waits:{}ms",
                                 lmv,
@@ -195,7 +195,7 @@ impl Proxyer {
                                 t.as_millis(),
                                 wt.as_millis()
                             );
-                            task::sleep(wt).await;
+                            task::sleep(wt*10).await;
                         }
                     };
                     ts = SystemTime::now();
@@ -231,15 +231,15 @@ impl Proxyer {
                 lkv.pull()
             };
             if let Some(v) = bts {
-                ts = SystemTime::now();
                 ruisutil::tcp_write_async(&self.inner.ctx, &mut ins.conn, &v).await?;
                 *count += v.len();
+                
                 if let Some(lmv) = lmt {
                     ln += v.len();
                     if lmv > 0 && ln >= lmv {
                         if let Ok(t) = SystemTime::now().duration_since(ts) {
-                            if t < self.inner.second {
-                                let wt = self.inner.second - t;
+                            if t < self.inner.speedtm {
+                                let wt = self.inner.speedtm - t;
                                 log::debug!(
                                     "write1 limit({}b/100ms) down ({}) uses:{}ms, waits:{}ms",
                                     lmv,
@@ -250,6 +250,7 @@ impl Proxyer {
                                 task::sleep(wt).await;
                             }
                         };
+                        ts = SystemTime::now();
                         ln = 0;
                     }
                 }

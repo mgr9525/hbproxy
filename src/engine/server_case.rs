@@ -24,6 +24,7 @@ struct Inner {
     proxy: ProxyEngine,
     node: NodeEngine,
     // nodes: RwLock<HashMap<String, NodeServer>>,
+    time_check: bool,
 }
 
 impl ServerCase {
@@ -36,6 +37,13 @@ impl ServerCase {
                 proxy: pxy,
                 node: nd,
                 // nodes: RwLock::new(HashMap::new()),
+                time_check: match &Application::get().conf {
+                    None => false,
+                    Some(v) => match &v.server.key_time_check {
+                        None => false,
+                        Some(v) => *v,
+                    },
+                },
             }),
         }
     }
@@ -85,7 +93,19 @@ impl ServerCase {
                         Ok(tm) => {
                             // println!("time since:{}", tm.as_secs_f32());
                             if tm > Duration::from_secs(120) {
-                                return false;
+                                if self.inner.time_check {
+                                    return false;
+                                } else {
+                                    let addrs = match c.peer_addr() {
+                                        Err(_) => "<nil>".to_string(),
+                                        Ok(vs) => vs,
+                                    };
+                                    log::warn!(
+                                        "client {} time err but not check:{}",
+                                        addrs.as_str(),
+                                        tms.as_str()
+                                    );
+                                }
                             }
                         }
                     },
