@@ -137,11 +137,10 @@ impl NodeServer {
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
             if !self.inner.shuted {
-                let mut msg = None;
-                {
+                let msg = {
                     let mut lkv = self.inner.msgs.lock().await;
-                    msg = lkv.pop_front();
-                }
+                    lkv.pop_front()
+                };
                 if let Some(v) = msg {
                     if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
                         log::error!("run_send send_msgs err:{}", e);
@@ -200,11 +199,22 @@ impl NodeServer {
     }
     pub async fn wait_conn(&self, host: &Option<String>, port: i32) -> io::Result<TcpStream> {
         // let ins = unsafe { self.inner.muts() };
-        let mut xids = format!("{}-{}", xid::new().to_string().as_str(), port);
+        let mut xids;
         {
             let lkv = self.inner.waits.read().await;
-            while lkv.contains_key(&xids) {
-                xids = format!("{}-{}", xid::new().to_string().as_str(), port);
+            loop {
+                if self.inner.ctx.done() {
+                    return Err(ruisutil::ioerr("ctx end", None));
+                }
+                xids = format!(
+                    "{}-{}{}",
+                    xid::new().to_string().as_str(),
+                    port,
+                    ruisutil::random(5)
+                );
+                if !lkv.contains_key(&xids) {
+                    break;
+                }
             }
         }
         {

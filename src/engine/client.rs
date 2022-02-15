@@ -113,11 +113,10 @@ impl NodeClient {
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
             if !self.inner.shuted {
-                let mut msg = None;
-                {
+                let msg = {
                     let mut lkv = self.inner.msgs.lock().await;
-                    msg = lkv.pop_front();
-                }
+                    lkv.pop_front()
+                };
                 if let Some(v) = msg {
                     if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
                         log::error!("run_send send_msgs err:{}", e);
@@ -170,7 +169,7 @@ impl NodeClient {
             }
         }
         if let Some(conn) = conns {
-            let cli = Self::new(Application::context(), cfg,conn);
+            let cli = Self::new(Application::context(), cfg, conn);
             cli.start().await?;
         }
         Ok(())
@@ -232,7 +231,11 @@ impl NodeClient {
                 ins.cfg.token = Some(data.token.clone());
             }
             Err(e) => {
-                log::debug!("NodeClient reconn err({}):{}", self.inner.cfg.name.as_str(),e);
+                log::debug!(
+                    "NodeClient reconn err({}):{}",
+                    self.inner.cfg.name.as_str(),
+                    e
+                );
                 if e.kind() == io::ErrorKind::AlreadyExists {
                     log::error!("已存在相同名称的节点");
                     task::sleep(Duration::from_secs(1)).await;
@@ -311,9 +314,9 @@ impl NodeClient {
                         }
                     }
 
-                    let hosts=match &data.host{
-                      None=>self.inner.connhost.as_str(),
-                      Some(v)=>v.as_str(),
+                    let hosts = match &data.host {
+                        None => self.inner.connhost.as_str(),
+                        Some(v) => v.as_str(),
                     };
                     let addrs = format!("{}:{}", hosts, data.port);
                     let connlc = match TcpStream::connect(addrs.as_str()).await {
