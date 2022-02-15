@@ -9,8 +9,8 @@ use crate::{
     app::Application,
     engine::{NodeEngine, NodeServerCfg, ProxyEngine, RuleCfg},
     entity::{
-        node::{NodeConnMsg, RegNodeRep, RegNodeReq},
-        proxy::{RuleConfReq, ProxyGoto},
+        node::{NodeConnMsg, RegNodeRep, RegNodeReq, ProxyGoto},
+        proxy::RuleConfReq,
     },
     utils,
 };
@@ -135,25 +135,25 @@ impl ServerCase {
         Ok(())
     }
 
-    pub async fn node_list(&self, c: hbtp::Context) -> io::Result<()> {
-        let rts = self.inner.node.show_list().await?;
-        c.res_json(hbtp::ResCodeOk, &rts).await
-        // Ok(())
-        // Err(ruisutil::ioerr("data err", None))
-    }
     pub async fn node_conn(&self, c: hbtp::Context) -> io::Result<()> {
         let data: NodeConnMsg = c.body_json()?;
         c.res_string(hbtp::ResCodeOk, "ok").await?;
         self.inner.node.put_conn(data, c.own_conn()).await
     }
+
+    pub async fn node_list(&self, c: hbtp::Context) -> io::Result<()> {
+        let rts = self.inner.node.show_list().await?;
+        c.res_json(hbtp::ResCodeOk, &rts).await
+    }
+    pub async fn node_proxy(&self, c: hbtp::Context) -> io::Result<()> {
+        let data: ProxyGoto = c.body_json()?;
+        c.res_string(hbtp::ResCodeOk, "ok").await?;
+        self.inner.node.proxy(data, c.own_conn()).await
+    }
+
     pub async fn proxy_reload(&self, c: hbtp::Context) -> io::Result<()> {
         self.inner.proxy.reload().await?;
         c.res_string(hbtp::ResCodeOk, "ok").await
-    }
-    pub async fn proxy_goto(&self, c: hbtp::Context) -> io::Result<()> {
-      let data: ProxyGoto = c.body_json()?;
-        c.res_string(hbtp::ResCodeOk, "ok").await?;
-        self.inner.proxy.goto(data,c.own_conn()).await
     }
 
     pub async fn proxy_add(&self, c: hbtp::Context) -> io::Result<()> {
@@ -179,7 +179,7 @@ impl ServerCase {
             bind_port: data.bind_port,
             proxy_host: data.proxy_host.clone(),
             proxy_port: data.proxy_port,
-            localhost:None,
+            localhost: None,
         };
         match self.inner.proxy.add_check(&cfg).await {
             0 => {}

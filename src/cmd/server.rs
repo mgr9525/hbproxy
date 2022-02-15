@@ -68,6 +68,7 @@ async fn handle2(c: hbtp::Context) -> io::Result<()> {
     }
     match c.command() {
         "NodeList" => cs.node_list(c).await,
+        "NodeProxy" => cs.node_proxy(c).await,
         _ => Err(ruisutil::ioerr("Not found Method", None)),
     }
 }
@@ -86,7 +87,6 @@ async fn handle3(c: hbtp::Context) -> io::Result<()> {
         "ProxyList" => cs.proxy_list(c).await,
         "ProxyRemove" => cs.proxy_remove(c).await,
         "ProxyReload" => cs.proxy_reload(c).await,
-        "ProxyGoto" => cs.proxy_goto(c).await,
         _ => Err(ruisutil::ioerr("Not found Method", None)),
     }
 }

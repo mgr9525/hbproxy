@@ -32,3 +32,10 @@ pub struct NodeConnMsg {
     pub host:Option<String>,
     pub port: i32,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct ProxyGoto {
+  pub proxy_host: String,
+  pub proxy_port: i32,
+  pub localhost: Option<String>,
+}
