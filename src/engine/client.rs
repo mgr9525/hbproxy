@@ -142,7 +142,6 @@ impl NodeClient {
         while !Application::context().done() {
             match Self::connect(&cfg).await {
                 Ok((conn, data)) => {
-                    log::debug!("NodeClient reconn mv conn:{}", cfg.name.as_str());
                     cfg.token = Some(data.token.clone());
                     conns = Some(conn);
                     break;
@@ -223,12 +222,15 @@ impl NodeClient {
         log::debug!("NodeClient reconn start:{}", self.inner.cfg.name.as_str());
         match Self::connect(&self.inner.cfg).await {
             Ok((conn, data)) => {
-                log::debug!("NodeClient reconn mv conn:{}", self.inner.cfg.name.as_str());
+                log::debug!("NodeClient reconn mv conn start:{}", self.inner.cfg.name.as_str());
+                task::sleep(Duration::from_secs(1)).await;
                 let ins = unsafe { self.inner.muts() };
+                self.inner.conntm.reset();
                 self.inner.ctmout.reset();
                 ins.shuted = false;
                 ins.conn = conn;
                 ins.cfg.token = Some(data.token.clone());
+                log::debug!("NodeClient reconn mv conn ok:{}", self.inner.cfg.name.as_str());
             }
             Err(e) => {
                 log::debug!(
@@ -259,6 +261,7 @@ impl NodeClient {
         if self.inner.shuted {
             if self.inner.conntm.tick() {
                 self.reconn().await;
+                task::sleep(Duration::from_secs(2)).await;
             }
         } else {
             if self.inner.ctmout.tick() {

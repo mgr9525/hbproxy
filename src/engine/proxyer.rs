@@ -50,7 +50,7 @@ impl Proxyer {
 
                 bufw: RwLock::new(ByteBoxBuf::new()),
                 buflcw: RwLock::new(ByteBoxBuf::new()),
-                speedtm: Duration::from_millis(100),
+                speedtm: Duration::from_millis(500),
 
                 endr1: false,
                 endr2: false,
@@ -165,7 +165,7 @@ impl Proxyer {
         let mut ts = SystemTime::now();
         let mut ln = 0;
         let lmt = if let Some(lmt) = &self.inner.cfg.limit {
-            Some(lmt.up * 1024 / 10)
+            Some(lmt.up * 1024 / 2)
         } else {
             None
         };
@@ -189,7 +189,7 @@ impl Proxyer {
                         if t < self.inner.speedtm {
                             let wt = self.inner.speedtm - t;
                             log::debug!(
-                                "read1 limit({}b/100ms) up ({}) uses:{}ms, waits:{}ms",
+                                "read1 limit({}b/500ms) up ({}) uses:{}ms, waits:{}ms",
                                 lmv,
                                 ln,
                                 t.as_millis(),
@@ -210,7 +210,7 @@ impl Proxyer {
         let mut ts = SystemTime::now();
         let mut ln = 0;
         let lmt = if let Some(lmt) = &self.inner.cfg.limit {
-            Some(lmt.down * 1024 / 10)
+            Some(lmt.down * 1024 / 2)
         } else {
             None
         };
@@ -241,7 +241,7 @@ impl Proxyer {
                             if t < self.inner.speedtm {
                                 let wt = self.inner.speedtm - t;
                                 log::debug!(
-                                    "write1 limit({}b/100ms) down ({}) uses:{}ms, waits:{}ms",
+                                    "write1 limit({}b/500ms) down ({}) uses:{}ms, waits:{}ms",
                                     lmv,
                                     ln,
                                     t.as_millis(),
