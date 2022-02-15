@@ -143,6 +143,21 @@ impl RuleProxy {
         Ok(())
     }
     async fn run_cli(&self, conn: TcpStream) {
+        if let Ok(addr) = conn.peer_addr() {
+            let locals = match &self.inner.cfg.localhost {
+                None => "<nil>",
+                Some(v) => v.as_str(),
+            };
+            log::debug!(
+                "listen {}:{} incoming from:{}->{}({}):{}",
+                self.inner.cfg.bind_host.as_str(),
+                self.inner.cfg.bind_port,
+                addr,
+                self.inner.cfg.proxy_host.as_str(),
+                locals,
+                self.inner.cfg.proxy_port
+            );
+        }
         match self.inner.node.find_node(&self.inner.cfg.proxy_host).await {
             Err(e) => {
                 log::error!("{} proxy err:{}", self.inner.cfg.proxy_host.as_str(), e);
@@ -162,7 +177,10 @@ impl RuleProxy {
                 px.start().await;
             }
             Ok(v) => {
-                let connlc = match v.wait_conn(&self.inner.cfg.localhost,self.inner.cfg.proxy_port).await {
+                let connlc = match v
+                    .wait_conn(&self.inner.cfg.localhost, self.inner.cfg.proxy_port)
+                    .await
+                {
                     Ok(v) => v,
                     Err(e) => {
                         log::error!("run_cli wait_conn err:{}", e);
