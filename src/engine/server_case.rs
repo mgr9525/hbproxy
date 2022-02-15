@@ -9,7 +9,7 @@ use crate::{
     app::Application,
     engine::{NodeEngine, NodeServerCfg, ProxyEngine, RuleCfg},
     entity::{
-        node::{NodeConnMsg, RegNodeRep, RegNodeReq, ProxyGoto},
+        node::{NodeConnMsg, ProxyGoto, RegNodeRep, RegNodeReq},
         proxy::RuleConfReq,
     },
     utils,
@@ -148,7 +148,7 @@ impl ServerCase {
     pub async fn node_proxy(&self, c: hbtp::Context) -> io::Result<()> {
         let data: ProxyGoto = c.body_json()?;
         c.res_string(hbtp::ResCodeOk, "ok").await?;
-        self.inner.node.proxy(data, c.own_conn()).await
+        self.inner.node.proxy(&data, c.own_conn()).await
     }
 
     pub async fn proxy_reload(&self, c: hbtp::Context) -> io::Result<()> {
@@ -177,9 +177,11 @@ impl ServerCase {
             },
             bind_host: data.bind_host.clone(),
             bind_port: data.bind_port,
-            proxy_host: data.proxy_host.clone(),
-            proxy_port: data.proxy_port,
-            localhost: None,
+            goto: ProxyGoto {
+                proxy_host: data.proxy_host.clone(),
+                proxy_port: data.proxy_port,
+                localhost: None,
+            },
         };
         match self.inner.proxy.add_check(&cfg).await {
             0 => {}

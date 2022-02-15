@@ -121,11 +121,11 @@ impl NodeEngine {
         }
         Ok(())
     }
-    pub async fn proxy(&self, data: ProxyGoto, conn: TcpStream) -> io::Result<()> {
+    pub async fn proxy(&self, data: &ProxyGoto, conn: TcpStream) -> io::Result<()> {
         match self.find_node(&data.proxy_host).await {
             Err(e) => {
                 log::error!("goto {} proxy err:{}", data.proxy_host.as_str(), e);
-                let addrs = format!("{}:{}", data.proxy_host, data.proxy_port);
+                let addrs = format!("{}:{}", data.proxy_host.as_str(), data.proxy_port);
                 let connlc = match TcpStream::connect(addrs.as_str()).await {
                     Ok(v) => v,
                     Err(e) => {
@@ -147,7 +147,7 @@ impl NodeEngine {
                 };
                 let px = Proxyer::new(
                     self.inner.ctx.clone(),
-                    format!("{}:{}", data.proxy_host, data.proxy_port),
+                    format!("{}:{}", data.proxy_host.as_str(), data.proxy_port),
                     conn,
                     connlc,
                 );

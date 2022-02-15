@@ -5,7 +5,7 @@ use ruisutil::ArcMut;
 
 use crate::{
     app::Application,
-    entity::{conf::ProxyInfoConf, proxy::ProxyListRep},
+    entity::{conf::ProxyInfoConf, proxy::ProxyListRep, node::ProxyGoto},
     utils,
 };
 
@@ -158,13 +158,15 @@ impl ProxyEngine {
                 bindls[0].to_string()
             },
             bind_port: bindport,
-            proxy_host: if gotols[0].is_empty() {
-                "localhost".to_string()
-            } else {
-                gotols[0].to_string()
+            goto: ProxyGoto {
+                proxy_host: if gotols[0].is_empty() {
+                    "localhost".to_string()
+                } else {
+                    gotols[0].to_string()
+                },
+                proxy_port: gotoport,
+                localhost: cfg.localhost.clone(),
             },
-            proxy_port: gotoport,
-            localhost: cfg.localhost.clone(),
         };
         match self.add_check(&data).await {
             0 => {}
@@ -211,7 +213,7 @@ impl ProxyEngine {
             rts.list.push(crate::entity::proxy::ProxyListIt {
                 name: v.conf().name.clone(),
                 remote: format!("{}:{}", v.conf().bind_host.as_str(), v.conf().bind_port),
-                proxy: format!("{}:{}", v.conf().proxy_host.as_str(), v.conf().proxy_port),
+                proxy: format!("{}:{}", v.conf().goto.proxy_host.as_str(), v.conf().goto.proxy_port),
                 status: v.status(),
                 msg: v.msg(),
             });

@@ -21,15 +21,15 @@ use ruisutil::{
     ArcMut,
 };
 
+use crate::entity::node::ProxyGoto;
+
 use super::{proxyer::Proxyer, NodeEngine, NodeServer, ProxyEngine};
 
 pub struct RuleCfg {
     pub name: String,
     pub bind_host: String,
     pub bind_port: i32,
-    pub proxy_host: String,
-    pub proxy_port: i32,
-    pub localhost: Option<String>,
+    pub goto: ProxyGoto,
 }
 #[derive(Clone)]
 pub struct RuleProxy {
@@ -144,7 +144,7 @@ impl RuleProxy {
     }
     async fn run_cli(&self, conn: TcpStream) {
         if let Ok(addr) = conn.peer_addr() {
-            let locals = match &self.inner.cfg.localhost {
+            let locals = match &self.inner.cfg.goto.localhost {
                 None => "<nil>",
                 Some(v) => v.as_str(),
             };
@@ -153,51 +153,13 @@ impl RuleProxy {
                 self.inner.cfg.bind_host.as_str(),
                 self.inner.cfg.bind_port,
                 addr,
-                self.inner.cfg.proxy_host.as_str(),
+                self.inner.cfg.goto.proxy_host.as_str(),
                 locals,
-                self.inner.cfg.proxy_port
+                self.inner.cfg.goto.proxy_port
             );
         }
-        match self.inner.node.find_node(&self.inner.cfg.proxy_host).await {
-            Err(e) => {
-                log::error!("{} proxy err:{}", self.inner.cfg.proxy_host.as_str(), e);
-                let addrs = format!(
-                    "{}:{}",
-                    self.inner.cfg.proxy_host, self.inner.cfg.proxy_port
-                );
-                let connlc = match TcpStream::connect(addrs.as_str()).await {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("new_conn connect err:{}", e);
-                        return;
-                    }
-                };
-                log::debug!("rule Proxyer start on -> {}", addrs.as_str());
-                let px = Proxyer::new(self.inner.ctx.clone(), addrs.clone(), conn, connlc);
-                px.start().await;
-            }
-            Ok(v) => {
-                let connlc = match v
-                    .wait_conn(&self.inner.cfg.localhost, self.inner.cfg.proxy_port)
-                    .await
-                {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("run_cli wait_conn err:{}", e);
-                        return;
-                    }
-                };
-                let px = Proxyer::new(
-                    self.inner.ctx.clone(),
-                    format!(
-                        "{}:{}",
-                        self.inner.cfg.proxy_host, self.inner.cfg.proxy_port
-                    ),
-                    conn,
-                    connlc,
-                );
-                px.start().await;
-            }
+        if let Err(e) = self.inner.node.proxy(&self.inner.cfg.goto, conn).await {
+            log::error!("run_cli node.proxy err:{}", e);
         }
     }
 
