@@ -85,6 +85,8 @@ async fn handle3(c: hbtp::Context) -> io::Result<()> {
     match c.command() {
         "ProxyAdd" => cs.proxy_add(c).await,
         "ProxyList" => cs.proxy_list(c).await,
+        "ProxyStart" => cs.proxy_start(c).await,
+        "ProxyStop" => cs.proxy_stop(c).await,
         "ProxyRemove" => cs.proxy_remove(c).await,
         "ProxyReload" => cs.proxy_reload(c).await,
         _ => Err(ruisutil::ioerr("Not found Method", None)),

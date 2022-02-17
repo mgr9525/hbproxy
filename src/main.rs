@@ -145,6 +145,20 @@ fn main() {
                 )
                 .subcommand(SubCommand::with_name("ls").about("proxy list"))
                 .subcommand(
+                    SubCommand::with_name("start").about("proxy start").arg(
+                        Arg::with_name("name")
+                            .required(true)
+                            .value_name("NAME")
+                            .help("proxy name"),
+                    ),
+                ).subcommand(
+                    SubCommand::with_name("stop").about("proxy stop").arg(
+                        Arg::with_name("name")
+                            .required(true)
+                            .value_name("NAME")
+                            .help("proxy name"),
+                    ),
+                ).subcommand(
                     SubCommand::with_name("rm").about("proxy remove").arg(
                         Arg::with_name("name")
                             .required(true)

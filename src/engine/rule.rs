@@ -54,7 +54,7 @@ impl RuleProxy {
                 node: node,
                 cfg: cfg,
                 stat: 0,
-                msgs: None,
+                msgs: Some("wait start...".to_string()),
                 lsr: None,
             }),
         }
@@ -65,6 +65,9 @@ impl RuleProxy {
     }
     pub async fn start(&self) -> io::Result<()> {
         let c = self.clone();
+        let ins = unsafe { c.inner.muts() };
+        ins.stat = 0;
+        ins.msgs = None;
         task::spawn(async move {
             if let Err(e) = c.run().await {
                 log::error!("run err:{}", e);
@@ -82,7 +85,7 @@ impl RuleProxy {
     crate::cfg_unix! {
       pub fn stop(&self) {
           //unsafe { self.inner.muts().lsr = None };
-          self.inner.ctx.done();
+          self.inner.ctx.stop();
           if let Some(lsr) = &self.inner.lsr {
               let fd = lsr.as_raw_fd();
               if fd != 0 {
@@ -132,7 +135,7 @@ impl RuleProxy {
                 }
             }
         }
-        self.inner.egn.remove(&self.inner.cfg.name).await;
+        // self.inner.egn.remove(&self.inner.cfg.name).await;
         log::debug!(
             "{}:{} proxy stop!!",
             self.inner.cfg.bind_host.as_str(),

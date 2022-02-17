@@ -28,6 +28,7 @@ pub struct ApiServerInfoConf {
 pub struct ProxyInfoConf {
     // #[serde(rename = "name")]
     pub name: Option<String>,
+    pub stop: Option<bool>,
     pub bind: String,
     pub proxy: String,
     pub localhost: Option<String>,

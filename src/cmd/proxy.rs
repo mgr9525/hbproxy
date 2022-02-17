@@ -10,6 +10,10 @@ pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         adds(v).await
     } else if let Some(v) = args.subcommand_matches("ls") {
         lss(v).await
+    } else if let Some(v) = args.subcommand_matches("start") {
+        starts(v).await
+    } else if let Some(v) = args.subcommand_matches("stop") {
+        stops(v).await
     } else if let Some(v) = args.subcommand_matches("rm") {
         rms(v).await
     } else {
@@ -182,6 +186,72 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     0
 }
 
+async fn starts<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+    let names = if let Some(vs) = args.value_of("name") {
+        vs
+    } else {
+        println!("name is required");
+        return -1;
+    };
+    let mut req = Application::new_reqs(3, "ProxyStart");
+    req.add_arg("name", names);
+    match req.dors(None, None).await {
+        Err(e) => {
+            log::error!("request do err:{}", e);
+            return -2;
+        }
+        Ok(res) => {
+            if res.get_code() == hbtp::ResCodeOk {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        println!("start:{}", vs);
+                    }
+                }
+            } else {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        log::error!("res err:{}", vs);
+                    }
+                }
+                return -3;
+            }
+        }
+    }
+    0
+}
+async fn stops<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+    let names = if let Some(vs) = args.value_of("name") {
+        vs
+    } else {
+        println!("name is required");
+        return -1;
+    };
+    let mut req = Application::new_reqs(3, "ProxyStop");
+    req.add_arg("name", names);
+    match req.dors(None, None).await {
+        Err(e) => {
+            log::error!("request do err:{}", e);
+            return -2;
+        }
+        Ok(res) => {
+            if res.get_code() == hbtp::ResCodeOk {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        println!("stop:{}", vs);
+                    }
+                }
+            } else {
+                if let Some(bs) = res.get_bodys() {
+                    if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                        log::error!("res err:{}", vs);
+                    }
+                }
+                return -3;
+            }
+        }
+    }
+    0
+}
 async fn rms<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     let names = if let Some(vs) = args.value_of("name") {
         vs

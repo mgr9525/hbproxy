@@ -34,20 +34,25 @@ impl ProxyEngine {
 
     pub async fn wait_proxys_clear(&self) {
         while !self.inner.ctx.done() {
-            task::sleep(Duration::from_millis(100)).await;
+            task::sleep(Duration::from_millis(500)).await;
             let lkv = self.inner.proxys.read().await;
             if lkv.len() <= 0 {
                 return;
             }
             let mut alled = true;
-            for (_, v) in lkv.iter() {
+            for (k, v) in lkv.iter() {
                 if !v.stopd() {
+                    log::debug!("{} not stop!!!!!!", k.as_str());
                     alled = false;
                 }
             }
             if alled {
-                return;
+                break;
             }
+        }
+        {
+            let mut lkv = self.inner.proxys.write().await;
+            lkv.clear();
         }
     }
     pub async fn reload(&self) -> io::Result<()> {
@@ -78,6 +83,7 @@ impl ProxyEngine {
             }
         }
         self.wait_proxys_clear().await;
+
         for e in std::fs::read_dir(pth)? {
             let dir = e?;
             let dpth = dir.path();
@@ -175,7 +181,9 @@ impl ProxyEngine {
             2 => return Err(ruisutil::ioerr("proxy port is exsit", None)),
             _ => return Err(ruisutil::ioerr("add check err", None)),
         }
-        self.add_proxy(data).await
+        let stopd = if let Some(v) = &cfg.stop { *v } else { false };
+        let rul = self.add_proxy(data,stopd).await?;
+        Ok(())
     }
 
     pub async fn add_check(&self, cfg: &RuleCfg) -> i8 {
@@ -192,7 +200,7 @@ impl ProxyEngine {
         }
         0
     }
-    pub async fn add_proxy(&self, cfg: RuleCfg) -> io::Result<()> {
+    pub async fn add_proxy(&self, cfg: RuleCfg, stopd: bool) -> io::Result<RuleProxy> {
         let nms = cfg.name.clone();
         let proxy = RuleProxy::new(
             self.inner.ctx.clone(),
@@ -200,10 +208,12 @@ impl ProxyEngine {
             self.inner.node.clone(),
             cfg,
         );
-        proxy.start().await?;
+        if !stopd {
+            proxy.start().await?;
+        }
         let mut lkv = self.inner.proxys.write().await;
-        lkv.insert(nms, proxy);
-        Ok(())
+        lkv.insert(nms, proxy.clone());
+        Ok(proxy)
     }
 
     pub async fn show_list(&self) -> io::Result<ProxyListRep> {
@@ -224,6 +234,26 @@ impl ProxyEngine {
             });
         }
         Ok(rts)
+    }
+    pub async fn start(&self, name: &String) -> io::Result<()> {
+        let lkv = self.inner.proxys.read().await;
+        if let Some(v) = lkv.get(name) {
+            v.start().await?;
+            log::debug!("proxy start:{}!!!!", name.as_str());
+            Ok(())
+        } else {
+            Err(ruisutil::ioerr("not found proxy", None))
+        }
+    }
+    pub async fn stop(&self, name: &String) -> io::Result<()> {
+        let lkv = self.inner.proxys.read().await;
+        if let Some(v) = lkv.get(name) {
+            v.stop();
+            log::debug!("proxy stop:{}!!!!", name.as_str());
+            Ok(())
+        } else {
+            Err(ruisutil::ioerr("not found proxy", None))
+        }
     }
     pub async fn remove(&self, name: &String) {
         let mut lkv = self.inner.proxys.write().await;

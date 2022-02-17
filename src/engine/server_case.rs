@@ -211,12 +211,30 @@ impl ServerCase {
             _ => return c.res_string(hbtp::ResCodeErr, "add check err").await,
         }
         let nms = cfg.name.clone();
-        self.inner.proxy.add_proxy(cfg).await?;
+        self.inner.proxy.add_proxy(cfg,false).await?;
         c.res_string(hbtp::ResCodeOk, nms.as_str()).await
     }
     pub async fn proxy_list(&self, c: hbtp::Context) -> io::Result<()> {
         let rts = self.inner.proxy.show_list().await?;
         c.res_json(hbtp::ResCodeOk, &rts).await
+    }
+    pub async fn proxy_start(&self, c: hbtp::Context) -> io::Result<()> {
+        let nms = if let Some(vs) = c.get_arg("name") {
+            vs
+        } else {
+            return c.res_string(hbtp::ResCodeOk, "param name err").await;
+        };
+        self.inner.proxy.start(&nms).await?;
+        c.res_string(hbtp::ResCodeOk, "ok").await
+    }
+    pub async fn proxy_stop(&self, c: hbtp::Context) -> io::Result<()> {
+        let nms = if let Some(vs) = c.get_arg("name") {
+            vs
+        } else {
+            return c.res_string(hbtp::ResCodeOk, "param name err").await;
+        };
+        self.inner.proxy.stop(&nms).await?;
+        c.res_string(hbtp::ResCodeOk, "ok").await
     }
     pub async fn proxy_remove(&self, c: hbtp::Context) -> io::Result<()> {
         let nms = if let Some(vs) = c.get_arg("name") {
