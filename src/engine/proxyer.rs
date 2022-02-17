@@ -189,13 +189,13 @@ impl Proxyer {
                         if t < self.inner.speedtm {
                             let wt = self.inner.speedtm - t;
                             log::debug!(
-                                "read1 limit({}b/500ms) up ({}) uses:{}ms, waits:{}ms",
+                                "read1 limit({}b/500ms) down ({}) uses:{}ms, waits:{}ms",
                                 lmv,
                                 ln,
                                 t.as_millis(),
                                 wt.as_millis()
                             );
-                            task::sleep(wt*10).await;
+                            task::sleep(wt).await;
                         }
                     };
                     ts = SystemTime::now();
