@@ -22,6 +22,7 @@ struct Inner {
     ctx: ruisutil::Context,
     cfg: NodeClientCfg,
     conn: TcpStream,
+    connold: Option<TcpStream>,
     shuted: bool,
     conntm: ruisutil::Timer,
     ctms: ruisutil::Timer,
@@ -38,6 +39,7 @@ impl NodeClient {
                 ctx: ctx,
                 cfg: cfg,
                 conn: conn,
+                connold: None,
                 shuted: false,
                 conntm: ruisutil::Timer::new(Duration::from_secs(3)),
                 ctms: ruisutil::Timer::new(Duration::from_secs(20)),
@@ -174,6 +176,7 @@ impl NodeClient {
         Ok(())
     }
     async fn connect(cfg: &NodeClientCfg) -> io::Result<(TcpStream, RegNodeRep)> {
+        log::debug!("NodeClient connect start:{}", cfg.name.as_str());
         let mut req = Application::new_req(1, "NodeJoin", false);
         let data = RegNodeReq {
             name: cfg.name.clone(),
@@ -222,15 +225,25 @@ impl NodeClient {
         log::debug!("NodeClient reconn start:{}", self.inner.cfg.name.as_str());
         match Self::connect(&self.inner.cfg).await {
             Ok((conn, data)) => {
-                log::debug!("NodeClient reconn mv conn start:{}", self.inner.cfg.name.as_str());
+                log::debug!(
+                    "NodeClient reconn mv conn start:{}",
+                    self.inner.cfg.name.as_str()
+                );
                 task::sleep(Duration::from_secs(1)).await;
                 let ins = unsafe { self.inner.muts() };
+                log::debug!("NodeClient reconn mv1:{}", self.inner.cfg.name.as_str());
                 self.inner.conntm.reset();
                 self.inner.ctmout.reset();
+                log::debug!("NodeClient reconn mv2:{}", self.inner.cfg.name.as_str());
                 ins.shuted = false;
-                ins.conn = conn;
+                log::debug!("NodeClient reconn mv3:{}", self.inner.cfg.name.as_str());
+                ins.connold = Some(std::mem::replace(&mut ins.conn, conn));
+                log::debug!("NodeClient reconn mv4:{}", self.inner.cfg.name.as_str());
                 ins.cfg.token = Some(data.token.clone());
-                log::debug!("NodeClient reconn mv conn ok:{}", self.inner.cfg.name.as_str());
+                log::debug!(
+                    "NodeClient reconn mv conn ok:{}",
+                    self.inner.cfg.name.as_str()
+                );
             }
             Err(e) => {
                 log::debug!(
@@ -332,7 +345,10 @@ impl NodeClient {
                     log::debug!("client Proxyer start on -> {}", addrs.as_str());
                     let px = Proxyer::new(
                         self.inner.ctx.clone(),
-                        ProxyerCfg { ids: addrs,limit:None },
+                        ProxyerCfg {
+                            ids: addrs,
+                            limit: None,
+                        },
                         res.own_conn(),
                         connlc,
                     );
