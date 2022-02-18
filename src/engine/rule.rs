@@ -98,7 +98,7 @@ impl RuleProxy {
     crate::cfg_windows! {
       pub fn stop(&self) {
           //unsafe { self.inner.muts().lsr = None };
-          self.inner.ctx.done();
+          self.inner.ctx.stop();
           if let Some(lsr) = &self.inner.lsr {
               let fd = lsr.as_raw_socket();
               if fd != 0 {
