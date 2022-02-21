@@ -87,7 +87,7 @@ impl ServerCase {
                     return Some("params has empty");
                 }
                 match ruisutil::strptime(tms.as_str(), "%+") {
-                    Err(e) => return Some("parse times err"),
+                    Err(_) => return Some("parse times err"),
                     Ok(v) => match SystemTime::now().duration_since(v) {
                         Err(e) => {
                             if self.inner.time_check {
@@ -99,9 +99,10 @@ impl ServerCase {
                                 };
 
                                 log::warn!(
-                                    "client {} time since err but not check:{}",
+                                    "client {} time since err but not check:{},err:{}",
                                     addrs.as_str(),
-                                    tms.as_str()
+                                    tms.as_str(),
+                                    e
                                 );
                             }
                         }
@@ -141,7 +142,7 @@ impl ServerCase {
                 }
             }
         };
-        Some("auths not match end!!")
+        // Some("auths not match end!!")
     }
 
     pub async fn node_reg(&self, c: hbtp::Context) -> io::Result<()> {

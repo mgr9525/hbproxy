@@ -1,7 +1,7 @@
 use std::io;
 
 crate::cfg_unix! {
-  use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
+  use std::os::unix::io::{AsRawFd};
 }
 crate::cfg_windows! {
   use winapi::um::winsock2;
@@ -11,19 +11,15 @@ crate::cfg_windows! {
 }
 
 use async_std::{
-    io::WriteExt,
     net::{TcpListener, TcpStream},
     task,
 };
-use futures::{AsyncReadExt, StreamExt};
-use ruisutil::{
-    bytes::{ByteBox, ByteBoxBuf},
-    ArcMut,
-};
+use futures::StreamExt;
+use ruisutil::ArcMut;
 
 use crate::entity::node::ProxyGoto;
 
-use super::{proxyer::Proxyer, NodeEngine, NodeServer, ProxyEngine};
+use super::{NodeEngine, ProxyEngine};
 
 pub struct RuleCfg {
     pub name: String,

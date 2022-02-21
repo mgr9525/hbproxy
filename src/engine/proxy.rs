@@ -182,7 +182,7 @@ impl ProxyEngine {
             _ => return Err(ruisutil::ioerr("add check err", None)),
         }
         let stopd = if let Some(v) = &cfg.stop { *v } else { false };
-        let rul = self.add_proxy(data,stopd).await?;
+        self.add_proxy(data,stopd).await?;
         Ok(())
     }
 
