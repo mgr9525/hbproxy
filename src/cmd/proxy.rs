@@ -165,7 +165,7 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                         Some(v) => v.clone(),
                     };
                     let loccals = match &v.goto.localhost {
-                        None => "<nil>".to_string(),
+                        None => "<localhost>".to_string(),
                         Some(v) => v.clone(),
                     };
                     println!(
