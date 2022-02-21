@@ -156,19 +156,24 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                     Ok(v) => v,
                 };
                 println!(
-                    "{:<30}{:<20}{:<20}{:^10}{:<25}",
-                    "Name", "Bind", "Proxy", "Status", "Msg"
+                    "{:<30}{:<20}{:<20}{:<20}{:^10}{:<25}",
+                    "Name", "Bind", "Proxy","Localhost", "Status", "Msg"
                 );
                 for v in &data.list {
                     let msgs = match &v.msg {
                         None => "<nil>".to_string(),
                         Some(v) => v.clone(),
                     };
+                    let loccals = match &v.goto.localhost {
+                        None => "<nil>".to_string(),
+                        Some(v) => v.clone(),
+                    };
                     println!(
-                        "{:<30}{:<20}{:<20}{:^10}{:<25}",
+                        "{:<30}{:<20}{:<20}{:<20}{:^10}{:<25}",
                         v.name.as_str(),
                         v.remote.as_str(),
                         v.proxy.as_str(),
+                        loccals.as_str(),
                         v.status,
                         msgs.as_str()
                     );

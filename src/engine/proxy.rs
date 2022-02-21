@@ -229,6 +229,7 @@ impl ProxyEngine {
                     v.conf().goto.proxy_host.as_str(),
                     v.conf().goto.proxy_port
                 ),
+                goto:v.conf().goto.clone(),
                 status: v.status(),
                 msg: v.msg(),
             });

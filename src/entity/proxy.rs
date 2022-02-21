@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::util::ProxyLimit;
+use super::{util::ProxyLimit, node::ProxyGoto};
 
 #[derive(Serialize, Deserialize)]
 pub struct RuleConfReq {
@@ -17,6 +17,7 @@ pub struct ProxyListIt {
     pub name: String,
     pub remote:String,
     pub proxy:String,
+    pub goto: ProxyGoto,
     pub status: i32,
     pub msg:Option<String>,
 }

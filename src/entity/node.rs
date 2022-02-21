@@ -35,7 +35,7 @@ pub struct NodeConnMsg {
     pub port: i32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct ProxyGoto {
   pub proxy_host: String,
   pub proxy_port: i32,
