@@ -58,43 +58,58 @@ impl ServerCase {
         });
     }
 
-    pub fn authed_server(&self, c: &hbtp::Context) -> bool {
+    pub fn authed_server(&self, c: &hbtp::Context) -> Option<&str> {
         self.autheds(c, &Application::get().keys)
     }
-    pub fn authed_api(&self, c: &hbtp::Context) -> bool {
+    pub fn authed_api(&self, c: &hbtp::Context) -> Option<&str> {
         self.autheds(c, &Application::get().apikeys)
     }
-    fn autheds(&self, c: &hbtp::Context, key: &Option<String>) -> bool {
+    fn autheds(&self, c: &hbtp::Context, key: &Option<String>) -> Option<&str> {
         match key {
-            None => return true,
+            None => return None,
             Some(vs) => {
                 if vs.is_empty() {
-                    return true;
+                    return None;
                 }
                 let tms = match c.get_arg("times") {
-                    None => return false,
+                    None => return Some("param times is nil"),
                     Some(v) => v,
                 };
                 let rands = match c.get_arg("random") {
-                    None => return false,
+                    None => return Some("param random is nil"),
                     Some(v) => v,
                 };
                 let signs = match c.get_arg("sign") {
-                    None => return false,
+                    None => return Some("param sign is nil"),
                     Some(v) => v,
                 };
                 if tms.is_empty() || rands.is_empty() || signs.is_empty() {
-                    return false;
+                    return Some("params has empty");
                 }
                 match ruisutil::strptime(tms.as_str(), "%+") {
-                    Err(e) => return false,
+                    Err(e) => return Some("parse times err"),
                     Ok(v) => match SystemTime::now().duration_since(v) {
-                        Err(e) => return false,
+                        Err(e) => {
+                            if self.inner.time_check {
+                                return Some("duration times err");
+                            } else {
+                                let addrs = match c.peer_addr() {
+                                    Err(_) => "<nil>".to_string(),
+                                    Ok(vs) => vs,
+                                };
+
+                                log::warn!(
+                                    "client {} time since err but not check:{}",
+                                    addrs.as_str(),
+                                    tms.as_str()
+                                );
+                            }
+                        }
                         Ok(tm) => {
                             // println!("time since:{}", tm.as_secs_f32());
                             if tm > Duration::from_secs(120) {
                                 if self.inner.time_check {
-                                    return false;
+                                    return Some("time check err: since>120s");
                                 } else {
                                     let addrs = match c.peer_addr() {
                                         Err(_) => "<nil>".to_string(),
@@ -119,11 +134,14 @@ impl ServerCase {
                     vs.as_str()
                 ));
                 if sign.eq(&signs) {
-                    return true;
+                    return None;
+                } else {
+                    log::debug!("check sign err:{}!={}", sign.as_str(), signs.as_str());
+                    return Some("check sign err");
                 }
             }
         };
-        false
+        Some("auths not match end!!")
     }
 
     pub async fn node_reg(&self, c: hbtp::Context) -> io::Result<()> {
@@ -211,7 +229,7 @@ impl ServerCase {
             _ => return c.res_string(hbtp::ResCodeErr, "add check err").await,
         }
         let nms = cfg.name.clone();
-        self.inner.proxy.add_proxy(cfg,false).await?;
+        self.inner.proxy.add_proxy(cfg, false).await?;
         c.res_string(hbtp::ResCodeOk, nms.as_str()).await
     }
     pub async fn proxy_list(&self, c: hbtp::Context) -> io::Result<()> {

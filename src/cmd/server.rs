@@ -39,8 +39,8 @@ async fn handles(c: hbtp::Context) -> io::Result<()> {
             return Err(ruisutil::ioerr("not init ok!!!", None));
         }
     };
-    if !cs.authed_server(&c) {
-        return c.res_string(hbtp::ResCodeAuth, "auth failed").await;
+    if let Some(vs) = cs.authed_server(&c) {
+        return c.res_string(hbtp::ResCodeAuth, vs).await;
     }
     match c.command() {
         "version" => c.res_string(hbtp::ResCodeOk, crate::app::VERSION).await,
@@ -63,8 +63,8 @@ async fn handle2(c: hbtp::Context) -> io::Result<()> {
             return Err(ruisutil::ioerr("not init ok!!!", None));
         }
     };
-    if !cs.authed_api(&c) {
-        return c.res_string(hbtp::ResCodeAuth, "auth failed").await;
+    if let Some(vs) = cs.authed_api(&c) {
+        return c.res_string(hbtp::ResCodeAuth, vs).await;
     }
     match c.command() {
         "NodeList" => cs.node_list(c).await,
@@ -79,8 +79,8 @@ async fn handle3(c: hbtp::Context) -> io::Result<()> {
             return Err(ruisutil::ioerr("not init ok!!!", None));
         }
     };
-    if !cs.authed_api(&c) {
-        return c.res_string(hbtp::ResCodeAuth, "auth failed").await;
+    if let Some(vs) = cs.authed_api(&c) {
+        return c.res_string(hbtp::ResCodeAuth, vs).await;
     }
     match c.command() {
         "ProxyAdd" => cs.proxy_add(c).await,

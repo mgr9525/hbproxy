@@ -278,6 +278,12 @@ impl NodeClient {
                     ));
                 }
                 if res.get_code() == hbtp::ResCodeAuth {
+                    if let Some(bs) = res.get_bodys() {
+                        if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                            log::error!("response err:{}", vs);
+                        }
+                    }
+
                     return Err(ruisutil::ioerr(
                         "name is exists",
                         Some(io::ErrorKind::InvalidInput),
