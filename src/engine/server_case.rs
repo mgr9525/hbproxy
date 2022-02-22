@@ -83,7 +83,7 @@ impl ServerCase {
                     None => return Some("param sign is nil"),
                     Some(v) => v,
                 };
-                if tms.is_empty() || rands.is_empty() || signs.is_empty() {
+                if tms.is_empty() || rands.len()<20 || signs.is_empty() {
                     return Some("params has empty");
                 }
                 match ruisutil::strptime(tms.as_str(), "%+") {
