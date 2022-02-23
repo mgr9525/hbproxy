@@ -83,7 +83,7 @@ impl ServerCase {
                     None => return Some("param sign is nil"),
                     Some(v) => v,
                 };
-                if tms.is_empty() || rands.len()<20 || signs.is_empty() {
+                if tms.is_empty() || rands.len() < 20 || signs.is_empty() {
                     return Some("params has empty");
                 }
                 match ruisutil::strptime(tms.as_str(), "%+") {
@@ -191,8 +191,12 @@ impl ServerCase {
     }
 
     pub async fn proxy_reload(&self, c: hbtp::Context) -> io::Result<()> {
-        self.inner.proxy.reload().await?;
-        c.res_string(hbtp::ResCodeOk, "ok").await
+        if let Err(e) = self.inner.proxy.reload().await {
+            c.res_string(hbtp::ResCodeErr, format!("reload failed:{}", e).as_str())
+                .await
+        } else {
+            c.res_string(hbtp::ResCodeOk, "ok").await
+        }
     }
 
     pub async fn proxy_add(&self, c: hbtp::Context) -> io::Result<()> {
