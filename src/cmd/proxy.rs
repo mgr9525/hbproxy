@@ -25,7 +25,7 @@ async fn reloads<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     let mut req = Application::new_reqs(3, "ProxyReload");
     match req.dors(None, None).await {
         Err(e) => {
-            log::error!("request do err:{}", e);
+            eprintln!("request do err:{}", e);
             return -2;
         }
         Ok(res) => {
@@ -38,7 +38,7 @@ async fn reloads<'a>(_: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("res err:{}", vs);
+                        eprintln!("res err:{}", vs);
                     }
                 }
                 return -3;
@@ -56,13 +56,13 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     let binds = if let Some(vs) = args.value_of("bind") {
         vs.to_string()
     } else {
-        log::error!("bind?");
+        eprintln!("bind?");
         return -1;
     };
     let gotos = if let Some(vs) = args.value_of("goto") {
         vs.to_string()
     } else {
-        log::error!("goto?");
+        eprintln!("goto?");
         return -1;
     };
     let bindls: Vec<&str> = binds.split(":").collect();
@@ -110,12 +110,12 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             gotols[0].to_string()
         },
         proxy_port: gotoport,
-        limit:None,
+        limit: None,
     };
     let mut req = Application::new_reqs(3, "ProxyAdd");
     match req.do_json(None, &data).await {
         Err(e) => {
-            log::error!("request do err:{}", e);
+            eprintln!("request do err:{}", e);
             return -2;
         }
         Ok(res) => {
@@ -128,7 +128,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("res err:{}", vs);
+                        eprintln!("res err:{}", vs);
                     }
                 }
                 return -3;
@@ -142,7 +142,7 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     let mut req = Application::new_reqs(3, "ProxyList");
     match req.dors(None, None).await {
         Err(e) => {
-            log::error!("request do err:{}", e);
+            eprintln!("request do err:{}", e);
             return -2;
         }
         Ok(res) => {
@@ -150,14 +150,14 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                 // println!("ls");
                 let data: ProxyListRep = match res.body_json() {
                     Err(e) => {
-                        log::error!("response body err:{}", e);
+                        eprintln!("response body err:{}", e);
                         return -3;
                     }
                     Ok(v) => v,
                 };
                 println!(
                     "{:<30}{:<20}{:<20}{:<20}{:^10}{:<25}",
-                    "Name", "Bind", "Proxy","Localhost", "Status", "Msg"
+                    "Name", "Bind", "Proxy", "Localhost", "Status", "Msg"
                 );
                 for v in &data.list {
                     let msgs = match &v.msg {
@@ -181,7 +181,7 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("res err:{}", vs);
+                        eprintln!("res err:{}", vs);
                     }
                 }
                 return -3;
@@ -202,7 +202,7 @@ async fn starts<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     req.add_arg("name", names);
     match req.dors(None, None).await {
         Err(e) => {
-            log::error!("request do err:{}", e);
+            eprintln!("request do err:{}", e);
             return -2;
         }
         Ok(res) => {
@@ -215,7 +215,7 @@ async fn starts<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("res err:{}", vs);
+                        eprintln!("res err:{}", vs);
                     }
                 }
                 return -3;
@@ -235,7 +235,7 @@ async fn stops<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     req.add_arg("name", names);
     match req.dors(None, None).await {
         Err(e) => {
-            log::error!("request do err:{}", e);
+            eprintln!("request do err:{}", e);
             return -2;
         }
         Ok(res) => {
@@ -248,7 +248,7 @@ async fn stops<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("res err:{}", vs);
+                        eprintln!("res err:{}", vs);
                     }
                 }
                 return -3;
@@ -268,7 +268,7 @@ async fn rms<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     req.add_arg("name", names);
     match req.dors(None, None).await {
         Err(e) => {
-            log::error!("request do err:{}", e);
+            eprintln!("request do err:{}", e);
             return -2;
         }
         Ok(res) => {
@@ -281,7 +281,7 @@ async fn rms<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("res err:{}", vs);
+                        eprintln!("res err:{}", vs);
                     }
                 }
                 return -3;

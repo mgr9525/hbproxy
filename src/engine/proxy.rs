@@ -56,6 +56,7 @@ impl ProxyEngine {
         }
     }
     pub async fn reload(&self) -> io::Result<()> {
+        log::debug!("proxy reload start");
         let path = match &Application::get().conf {
             None => return Err(ruisutil::ioerr("not found proxys path", None)),
             Some(v) => match &v.server.proxys_path {
@@ -182,7 +183,7 @@ impl ProxyEngine {
             _ => return Err(ruisutil::ioerr("add check err", None)),
         }
         let stopd = if let Some(v) = &cfg.stop { *v } else { false };
-        self.add_proxy(data,stopd).await?;
+        self.add_proxy(data, stopd).await?;
         Ok(())
     }
 
@@ -229,7 +230,7 @@ impl ProxyEngine {
                     v.conf().goto.proxy_host.as_str(),
                     v.conf().goto.proxy_port
                 ),
-                goto:v.conf().goto.clone(),
+                goto: v.conf().goto.clone(),
                 status: v.status(),
                 msg: v.msg(),
             });

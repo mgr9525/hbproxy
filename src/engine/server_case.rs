@@ -192,6 +192,7 @@ impl ServerCase {
 
     pub async fn proxy_reload(&self, c: hbtp::Context) -> io::Result<()> {
         if let Err(e) = self.inner.proxy.reload().await {
+            log::debug!("proxy reload err:{}", e);
             c.res_string(hbtp::ResCodeErr, format!("reload failed:{}", e).as_str())
                 .await
         } else {

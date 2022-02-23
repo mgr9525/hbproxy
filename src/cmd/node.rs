@@ -18,15 +18,15 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     };
     match utils::remote_version(Application::new_req(1, "version", false)).await {
         Err(e) => {
-            log::error!("remote version err:{}", e);
+            eprintln!("remote version err:{}", e);
             // return -1;
         }
-        Ok(v) => log::info!("remote version:{}", v.as_str()),
+        Ok(v) => println!("remote version:{}", v.as_str()),
     };
 
     match engine::NodeClient::runs(names.into()).await {
         Err(e) => {
-            log::error!("client run err:{}", e);
+            eprintln!("client run err:{}", e);
             -3
         }
         Ok(_) => 0,
@@ -37,7 +37,7 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     let mut req = Application::new_reqs(2, "NodeList");
     match req.dors(None, None).await {
         Err(e) => {
-            log::error!("request do err:{}", e);
+            eprintln!("request do err:{}", e);
             return -2;
         }
         Ok(res) => {
@@ -45,7 +45,7 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                 // println!("ls");
                 let data: NodeListRep = match res.body_json() {
                     Err(e) => {
-                        log::error!("response body err:{}", e);
+                        eprintln!("response body err:{}", e);
                         return -3;
                     }
                     Ok(v) => v,
@@ -74,7 +74,7 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
             } else {
                 if let Some(bs) = res.get_bodys() {
                     if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                        log::error!("res err:{}", vs);
+                        eprintln!("res err:{}", vs);
                     }
                 }
                 return -3;

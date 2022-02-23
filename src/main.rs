@@ -23,7 +23,7 @@ mod entity;
 #[macro_use]
 mod utils;
 
-use std::io;
+use std::{io, time::Duration};
 
 use clap::{App, Arg, SubCommand};
 use flexi_logger::Duplicate;
