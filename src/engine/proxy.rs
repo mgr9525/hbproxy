@@ -203,14 +203,9 @@ impl ProxyEngine {
     }
     pub async fn add_proxy(&self, cfg: RuleCfg, stopd: bool) -> io::Result<RuleProxy> {
         let nms = cfg.name.clone();
-        let proxy = RuleProxy::new(
-            self.inner.ctx.clone(),
-            self.clone(),
-            self.inner.node.clone(),
-            cfg,
-        );
+        let proxy = RuleProxy::new(self.clone(), self.inner.node.clone(), cfg);
         if !stopd {
-            proxy.start().await?;
+            proxy.start(self.inner.ctx.clone()).await?;
         }
         let mut lkv = self.inner.proxys.write().await;
         lkv.insert(nms, proxy.clone());
@@ -240,7 +235,7 @@ impl ProxyEngine {
     pub async fn start(&self, name: &String) -> io::Result<()> {
         let lkv = self.inner.proxys.read().await;
         if let Some(v) = lkv.get(name) {
-            v.start().await?;
+            v.start(self.inner.ctx.clone()).await?;
             log::debug!("proxy start:{}!!!!", name.as_str());
             Ok(())
         } else {

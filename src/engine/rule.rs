@@ -42,10 +42,12 @@ struct Inner {
 }
 
 impl RuleProxy {
-    pub fn new(ctx: ruisutil::Context, egn: ProxyEngine, node: NodeEngine, cfg: RuleCfg) -> Self {
+    pub fn new(egn: ProxyEngine, node: NodeEngine, cfg: RuleCfg) -> Self {
+        let ctx = ruisutil::Context::background(None);
+        ctx.stop();
         Self {
             inner: ArcMut::new(Inner {
-                ctx: ruisutil::Context::background(Some(ctx)),
+                ctx: ctx,
                 egn: egn,
                 node: node,
                 cfg: cfg,
@@ -59,9 +61,13 @@ impl RuleProxy {
     pub fn stopd(&self) -> bool {
         self.inner.ctx.done()
     }
-    pub async fn start(&self) -> io::Result<()> {
+    pub async fn start(&self, ctx: ruisutil::Context) -> io::Result<()> {
+        if !self.stopd() {
+            return Err(ruisutil::ioerr("This is starting...", None));
+        }
         let c = self.clone();
         let ins = unsafe { c.inner.muts() };
+        ins.ctx = ruisutil::Context::background(Some(ctx));
         ins.stat = 0;
         ins.msgs = None;
         task::spawn(async move {
