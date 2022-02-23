@@ -203,6 +203,12 @@ impl ProxyEngine {
     }
     pub async fn add_proxy(&self, cfg: RuleCfg, stopd: bool) -> io::Result<RuleProxy> {
         let nms = cfg.name.clone();
+        if nms.is_empty() {
+            return Err(ruisutil::ioerr("name is empty!", None));
+        }
+        if let Err(e) = self.stop(&nms).await {
+            log::debug!("add {} stop err:{}", nms.as_str(), e);
+        }
         let proxy = RuleProxy::new(self.clone(), self.inner.node.clone(), cfg);
         if !stopd {
             proxy.start(self.inner.ctx.clone()).await?;
