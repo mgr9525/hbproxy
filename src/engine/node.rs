@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     io,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use async_std::{
@@ -18,6 +18,7 @@ use crate::{
 use super::NodeEngine;
 
 pub struct NodeServerCfg {
+    pub id: String,
     pub name: String,
     pub version: Option<String>,
     pub token: String,
@@ -37,6 +38,8 @@ struct Inner {
 
     msgs: Mutex<VecDeque<Messages>>,
     waits: RwLock<HashMap<String, Mutex<Option<TcpStream>>>>,
+
+    oln_time: SystemTime,
 }
 
 impl NodeServer {
@@ -44,8 +47,9 @@ impl NodeServer {
         ctx: ruisutil::Context,
         egn: NodeEngine,
         conn: TcpStream,
-        cfg: NodeServerCfg,
+        mut cfg: NodeServerCfg,
     ) -> Self {
+        cfg.id = xid::new().to_string();
         Self {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
@@ -57,6 +61,7 @@ impl NodeServer {
 
                 msgs: Mutex::new(VecDeque::new()),
                 waits: RwLock::new(HashMap::new()),
+                oln_time: SystemTime::now(),
             }),
         }
     }
@@ -89,7 +94,9 @@ impl NodeServer {
         let c = self.clone();
         task::spawn(async move {
             while !c.inner.ctx.done() {
-                c.run_check().await;
+                if let Err(e) = c.run_check().await {
+                    log::error!("run_check err:{}", e);
+                }
                 task::sleep(Duration::from_millis(100)).await;
             }
         });
@@ -102,6 +109,10 @@ impl NodeServer {
         log::debug!("NodeServer run_recv start:{}", self.inner.cfg.name.as_str());
         self.run_recv().await;
         log::debug!("NodeServer run_recv end:{}", self.inner.cfg.name.as_str());
+        self.inner
+            .egn
+            .remove(&self.inner.cfg.name, &self.inner.cfg.id)
+            .await;
         // self.inner.case.rm_node(self.inner.cfg.id);
         // });
     }
@@ -156,12 +167,19 @@ impl NodeServer {
             task::sleep(Duration::from_millis(10)).await;
         }
     }
-    async fn run_check(&self) {
+    async fn run_check(&self) -> io::Result<()> {
         if self.inner.ctmout.tick() {
             if !self.inner.shuted {
                 self.close();
             }
+        } else {
+            let tms = self.online_time()?;
+            if !self.online() && tms.as_secs() > 60 * 60 {
+                self.stop();
+            }
         }
+
+        Ok(())
     }
     async fn on_msg(&self, msg: utils::msg::Message) {
         match msg.control {
@@ -185,6 +203,13 @@ impl NodeServer {
             false
         } else {
             !self.inner.ctmout.tmout()
+        }
+    }
+
+    pub fn online_time(&self) -> io::Result<Duration> {
+        match SystemTime::now().duration_since(self.inner.oln_time.clone()) {
+            Err(_) => Err(ruisutil::ioerr("time since err", None)),
+            Ok(v) => Ok(v),
         }
     }
 

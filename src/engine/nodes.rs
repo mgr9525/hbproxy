@@ -66,15 +66,19 @@ impl NodeEngine {
         }; */
         st
     }
-    pub async fn register(&self, cfg: NodeServerCfg, conn: TcpStream) {
+    pub async fn register(&self, cfg: NodeServerCfg, conn: TcpStream) -> io::Result<()> {
         let mut lkv = self.inner.nodes.write().await;
-        let name = cfg.name.clone();
-        if let Some(v) = lkv.get(&name) {
+        let nms = cfg.name.clone();
+        if nms.is_empty() {
+            return Err(ruisutil::ioerr("name is empty!", None));
+        }
+        if let Some(v) = lkv.get(&nms) {
             v.stop();
         }
         let node = NodeServer::new(self.inner.ctx.clone(), self.clone(), conn, cfg);
-        lkv.insert(name, node.clone());
+        lkv.insert(nms, node.clone());
         task::spawn(node.start());
+        Ok(())
     }
     /* pub async fn rm_node(&self, nm: &String) {
         log::info!("rm_node:{}", nm.as_str());
@@ -94,6 +98,7 @@ impl NodeEngine {
                     name: v.conf().name.clone(),
                     version: v.conf().version.clone(),
                     online: v.online(),
+                    online_times: v.online_time()?.as_secs(),
                     addrs: match v.peer_addr() {
                         Err(e) => {
                             log::error!("peer_addr err:{}", e);
@@ -105,6 +110,19 @@ impl NodeEngine {
             }
         }
         Ok(rts)
+    }
+    pub async fn remove(&self, name: &String, id: &String) {
+        let mut lkv = self.inner.nodes.write().await;
+        if let Some(v) = lkv.get(name) {
+            if v.conf().id.eq(id) {
+                log::debug!("skip remove node,the {} is replaced", name.as_str());
+                return;
+            }
+            if let Some(v) = lkv.remove(name) {
+                v.stop();
+                log::debug!("proxy remove:{}!!!!", name.as_str());
+            }
+        }
     }
 
     pub async fn find_node(&self, k: &String) -> io::Result<NodeServer> {

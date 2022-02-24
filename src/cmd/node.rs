@@ -51,8 +51,8 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                     Ok(v) => v,
                 };
                 println!(
-                    "{:<30}{:<25}{:^10}{:^10}",
-                    "Name", "Addr", "Online", "Version"
+                    "{:<30}{:<25}{:^10}{:^8}{:^10}",
+                    "Name", "Addr", "Online", "Duration", "Version"
                 );
                 for v in &data.list {
                     let frms = match &v.addrs {
@@ -64,10 +64,11 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                         Some(v) => v.clone(),
                     };
                     println!(
-                        "{:<30}{:<25}{:^10}{:^10}",
+                        "{:<30}{:<25}{:^10}{:^8}{:^10}",
                         v.name.as_str(),
                         frms.as_str(),
                         v.online,
+                        utils::mytimes(v.online_times),
                         vers.as_str(),
                     );
                 }

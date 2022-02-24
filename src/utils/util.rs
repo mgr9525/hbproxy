@@ -38,3 +38,24 @@ pub fn ymlfile<T: DeserializeOwned, P: AsRef<Path>>(path: P) -> io::Result<T> {
         Ok(v) => Ok(v),
     }
 }
+
+pub fn mytimes(sec: u64) -> String {
+    if sec >= 86400 {
+        let day = sec / 86400;
+        let hour = (sec % 86400) / 3600;
+        let min = (sec % 86400 % 3600) / 60;
+        let sec = sec % 86400 % 3600 & 60;
+        format!("{}d{}h{}m{}s", day, hour, min, sec)
+    } else if sec >= 3600 {
+        let hour = sec / 3600;
+        let min = (sec % 3600) / 60;
+        let sec = sec % 3600 & 60;
+        format!("{}h{}m{}s", hour, min, sec)
+    } else if sec >= 60 {
+        let min = sec / 60;
+        let sec = sec % 60;
+        format!("{}m{}s", min, sec)
+    } else {
+        format!("{}s", sec)
+    }
+}

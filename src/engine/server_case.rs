@@ -158,6 +158,7 @@ impl ServerCase {
         };
 
         let cfg = NodeServerCfg {
+            id: String::new(),
             name: data.name.clone(),
             version: data.version.clone(),
             token: ruisutil::random(32),
@@ -170,7 +171,7 @@ impl ServerCase {
             },
         )
         .await?;
-        self.inner.node.register(cfg, c.own_conn()).await;
+        self.inner.node.register(cfg, c.own_conn()).await?;
         Ok(())
     }
 
