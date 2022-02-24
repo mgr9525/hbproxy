@@ -215,6 +215,9 @@ impl NodeServer {
         }
     }
     pub fn outline_time(&self) -> io::Result<Duration> {
+        if self.inner.otln_time == SystemTime::UNIX_EPOCH {
+            return Err(ruisutil::ioerr("not out?", None));
+        }
         match SystemTime::now().duration_since(self.inner.otln_time.clone()) {
             Err(_) => Err(ruisutil::ioerr("time since err", None)),
             Ok(v) => Ok(v),
