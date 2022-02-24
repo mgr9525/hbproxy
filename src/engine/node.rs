@@ -40,6 +40,7 @@ struct Inner {
     waits: RwLock<HashMap<String, Mutex<Option<TcpStream>>>>,
 
     oln_time: SystemTime,
+    otln_time: SystemTime,
 }
 
 impl NodeServer {
@@ -62,6 +63,7 @@ impl NodeServer {
                 msgs: Mutex::new(VecDeque::new()),
                 waits: RwLock::new(HashMap::new()),
                 oln_time: SystemTime::now(),
+                otln_time: SystemTime::UNIX_EPOCH,
             }),
         }
     }
@@ -80,6 +82,7 @@ impl NodeServer {
             return;
         }
         let ins = unsafe { self.inner.muts() };
+        ins.otln_time = SystemTime::now();
         ins.shuted = true;
         if let Err(e) = ins.conn.shutdown(std::net::Shutdown::Both) {
             log::error!("close shutdown err:{}", e);
@@ -169,12 +172,11 @@ impl NodeServer {
     }
     async fn run_check(&self) -> io::Result<()> {
         if self.inner.ctmout.tick() {
-            if !self.inner.shuted {
-                self.close();
-            }
-        } else {
-            let tms = self.online_time()?;
-            if !self.online() && tms.as_secs() > 60 * 60 {
+            self.close();
+        }
+        if !self.online() {
+            let tms = self.outline_time()?;
+            if tms.as_secs() > 60 * 60 {
                 self.stop();
             }
         }
@@ -208,6 +210,12 @@ impl NodeServer {
 
     pub fn online_time(&self) -> io::Result<Duration> {
         match SystemTime::now().duration_since(self.inner.oln_time.clone()) {
+            Err(_) => Err(ruisutil::ioerr("time since err", None)),
+            Ok(v) => Ok(v),
+        }
+    }
+    pub fn outline_time(&self) -> io::Result<Duration> {
+        match SystemTime::now().duration_since(self.inner.otln_time.clone()) {
             Err(_) => Err(ruisutil::ioerr("time since err", None)),
             Ok(v) => Ok(v),
         }
