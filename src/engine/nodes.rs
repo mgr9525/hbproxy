@@ -67,11 +67,11 @@ impl NodeEngine {
         st
     }
     pub async fn register(&self, cfg: NodeServerCfg, conn: TcpStream) -> io::Result<()> {
-        let mut lkv = self.inner.nodes.write().await;
         let nms = cfg.name.clone();
         if nms.is_empty() {
             return Err(ruisutil::ioerr("name is empty!", None));
         }
+        let mut lkv = self.inner.nodes.write().await;
         if let Some(v) = lkv.get(&nms) {
             v.stop();
         }
@@ -99,6 +99,10 @@ impl NodeEngine {
                     version: v.conf().version.clone(),
                     online: v.online(),
                     online_times: v.online_time()?.as_secs(),
+                    outline_times: match v.outline_time() {
+                        Err(_) => None,
+                        Ok(v) => Some(v.as_secs()),
+                    },
                     addrs: match v.peer_addr() {
                         Err(e) => {
                             log::error!("peer_addr err:{}", e);
@@ -114,7 +118,7 @@ impl NodeEngine {
     pub async fn remove(&self, name: &String, id: &String) {
         let mut lkv = self.inner.nodes.write().await;
         if let Some(v) = lkv.get(name) {
-            if v.conf().id.eq(id) {
+            if !v.conf().id.eq(id) {
                 log::debug!("skip remove node,the {} is replaced", name.as_str());
                 return;
             }

@@ -20,6 +20,7 @@ pub struct NodeListIt {
     pub addrs: Option<String>,
     pub online: bool,
     pub online_times: u64,
+    pub outline_times: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize)]

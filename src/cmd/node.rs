@@ -63,12 +63,16 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                         None => "<nil>".to_string(),
                         Some(v) => v.clone(),
                     };
+                    let tms=match v.outline_times{
+                      None=>utils::mytimes(v.online_times),
+                      Some(v)=>format!("OUT:{}",utils::mytimes(v)),
+                    };
                     println!(
                         "{:<30}{:<25}{:^10}{:^12}{:^10}",
                         v.name.as_str(),
                         frms.as_str(),
                         v.online,
-                        utils::mytimes(v.online_times),
+                        tms,
                         vers.as_str(),
                     );
                 }

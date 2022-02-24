@@ -73,6 +73,9 @@ impl NodeServer {
     }
 
     pub fn peer_addr(&self) -> io::Result<String> {
+        if self.inner.shuted {
+            return Err(ruisutil::ioerr("conn is shutdown", None));
+        }
         let addr = self.inner.conn.peer_addr()?;
         Ok(addr.to_string())
     }
@@ -97,84 +100,80 @@ impl NodeServer {
         let c = self.clone();
         task::spawn(async move {
             while !c.inner.ctx.done() {
-                if let Err(e) = c.run_check().await {
-                    log::error!("run_check err:{}", e);
-                }
-                task::sleep(Duration::from_millis(100)).await;
+                c.run_send().await;
             }
         });
         let c = self.clone();
         task::spawn(async move {
             while !c.inner.ctx.done() {
-                c.run_send().await;
+                c.run_recv().await;
             }
         });
-        log::debug!("NodeServer run_recv start:{}", self.inner.cfg.name.as_str());
-        self.run_recv().await;
-        log::debug!("NodeServer run_recv end:{}", self.inner.cfg.name.as_str());
+        while !self.inner.ctx.done() {
+            if let Err(e) = self.run_check().await {
+                log::error!("run_check err:{}", e);
+            }
+            task::sleep(Duration::from_millis(100)).await;
+        }
         self.inner
             .egn
             .remove(&self.inner.cfg.name, &self.inner.cfg.id)
             .await;
-        // self.inner.case.rm_node(self.inner.cfg.id);
-        // });
     }
     async fn run_recv(&self) {
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
-            if !self.inner.shuted {
-                match utils::msg::parse_msg(&self.inner.ctx, &mut ins.conn).await {
-                    Err(e) => {
-                        log::error!(
-                            "NodeServer({}) parse_msg err:{:?}",
-                            self.inner.cfg.name.as_str(),
-                            e
-                        );
-                        // self.stop();
-                        self.close();
-                        task::sleep(Duration::from_millis(100)).await;
-                    }
-                    Ok(v) => {
-                        // self.push(data);
-                        // self.inner.room.push(data);
-                        let c = self.clone();
-                        // task::spawn(c.on_msg(v));
-                        task::spawn(async move { c.on_msg(v).await });
-                        continue;
-                    }
+            if self.inner.shuted {
+                break;
+            }
+            match utils::msg::parse_msg(&self.inner.ctx, &mut ins.conn).await {
+                Err(e) => {
+                    log::error!(
+                        "NodeServer({}) parse_msg err:{:?}",
+                        self.inner.cfg.name.as_str(),
+                        e
+                    );
+                    // self.stop();
+                    self.close();
+                    task::sleep(Duration::from_millis(100)).await;
+                }
+                Ok(v) => {
+                    // self.push(data);
+                    // self.inner.room.push(data);
+                    let c = self.clone();
+                    // task::spawn(c.on_msg(v));
+                    task::spawn(async move { c.on_msg(v).await });
                 }
             }
-            task::sleep(Duration::from_millis(10)).await;
         }
     }
     async fn run_send(&self) {
         let ins = unsafe { self.inner.muts() };
         while !self.inner.ctx.done() {
-            if !self.inner.shuted {
-                let msg = {
-                    let mut lkv = self.inner.msgs.lock().await;
-                    lkv.pop_front()
-                };
-                if let Some(v) = msg {
-                    if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
-                        log::error!("run_send send_msgs err:{}", e);
-                        /* if let Ok(mut lkv) = self.inner.waits.write() {
-                            lkv.remove(&xids);
-                        } */
-                    } else {
-                        // log::debug!("run_send send_msgs ok:{}", ctrl);
-                        continue;
-                    }
-                }
+            if self.inner.shuted {
+                break;
             }
-            task::sleep(Duration::from_millis(10)).await;
+            let msg = {
+                let mut lkv = self.inner.msgs.lock().await;
+                lkv.pop_front()
+            };
+            if let Some(v) = msg {
+                if let Err(e) = utils::msg::send_msgs(&self.inner.ctx, &mut ins.conn, v).await {
+                    log::error!("run_send send_msgs err:{}", e);
+                } /*  else {
+                      // log::debug!("run_send send_msgs ok:{}", ctrl);
+                      continue;
+                  } */
+            } else {
+                task::sleep(Duration::from_millis(10)).await;
+            }
         }
     }
     async fn run_check(&self) -> io::Result<()> {
         if self.inner.ctmout.tick() {
             self.close();
         }
-        if !self.online() {
+        if self.inner.shuted {
             let tms = self.outline_time()?;
             if tms.as_secs() > 60 * 60 {
                 self.stop();
@@ -209,12 +208,20 @@ impl NodeServer {
     }
 
     pub fn online_time(&self) -> io::Result<Duration> {
-        match SystemTime::now().duration_since(self.inner.oln_time.clone()) {
+        let nw = if self.inner.otln_time == SystemTime::UNIX_EPOCH {
+            SystemTime::now()
+        } else {
+            self.inner.otln_time
+        };
+        match nw.duration_since(self.inner.oln_time.clone()) {
             Err(_) => Err(ruisutil::ioerr("time since err", None)),
             Ok(v) => Ok(v),
         }
     }
     pub fn outline_time(&self) -> io::Result<Duration> {
+        if self.online() {
+            return Err(ruisutil::ioerr("this is also online", None));
+        }
         if self.inner.otln_time == SystemTime::UNIX_EPOCH {
             return Err(ruisutil::ioerr("not out?", None));
         }
