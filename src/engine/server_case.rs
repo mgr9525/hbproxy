@@ -20,7 +20,6 @@ pub struct ServerCase {
     inner: ruisutil::ArcMut<Inner>,
 }
 struct Inner {
-    ctx: ruisutil::Context,
     proxy: ProxyEngine,
     node: NodeEngine,
     // nodes: RwLock<HashMap<String, NodeServer>>,
@@ -28,12 +27,11 @@ struct Inner {
 }
 
 impl ServerCase {
-    pub fn new(ctx: ruisutil::Context) -> Self {
+    pub fn new() -> Self {
         let nd = NodeEngine::new(ctx.clone());
         let pxy = ProxyEngine::new(ctx.clone(), nd.clone());
         Self {
             inner: ruisutil::ArcMut::new(Inner {
-                ctx: ctx,
                 proxy: pxy,
                 node: nd,
                 // nodes: RwLock::new(HashMap::new()),

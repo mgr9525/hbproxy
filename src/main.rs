@@ -23,8 +23,6 @@ mod entity;
 #[macro_use]
 mod utils;
 
-use std::{io, time::Duration};
-
 use clap::{App, Arg, SubCommand};
 use flexi_logger::Duplicate;
 
@@ -174,9 +172,9 @@ fn main() {
             Some(v) => v.to_string(),
             None => utils::envs("HBPROXY_CONF", "/etc/hbproxy/hbproxy.yml"),
         }) {
-            Err(e) => None,
+            Err(_) => None,
             Ok(v) => match serde_yaml::from_str(v.as_str()) {
-                Err(e) => None,
+                Err(_) => None,
                 Ok(v) => Some(v),
             },
         };
@@ -218,8 +216,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use hbtp::Request;
-
-    use crate::entity::node::RegNodeReq;
 
     #[test]
     fn versions() {

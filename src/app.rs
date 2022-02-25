@@ -117,12 +117,12 @@ impl Application {
     pub fn get_mut() -> &'static mut Application {
         unsafe { APPONE.get_mut() }.unwrap()
     }
-    pub fn stop() {
+    /* pub fn stop() {
         Self::get().ctx.stop();
         unsafe {
             APPONE = OnceCell::new();
         }
-    }
+    } */
     pub fn context() -> ruisutil::Context {
         Self::get().ctx.clone()
     }
