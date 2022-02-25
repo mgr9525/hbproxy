@@ -6,7 +6,7 @@ use crate::{app::Application, engine::ServerCase};
 
 pub async fn runs<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     let addrs = Application::get().apiaddrs.clone();
-    let cs = ServerCase::new();
+    let cs = ServerCase::new(Application::context());
     cs.start().await;
     Application::get_mut().server_case = Some(cs);
     task::spawn(async move {

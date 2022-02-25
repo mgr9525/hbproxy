@@ -27,7 +27,7 @@ struct Inner {
 }
 
 impl ServerCase {
-    pub fn new() -> Self {
+    pub fn new(ctx: ruisutil::Context) -> Self {
         let nd = NodeEngine::new(ctx.clone());
         let pxy = ProxyEngine::new(ctx.clone(), nd.clone());
         Self {
