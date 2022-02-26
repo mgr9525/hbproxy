@@ -11,9 +11,14 @@ pub async fn runs<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     Application::get_mut().server_case = Some(cs);
     task::spawn(async move {
         let serv = hbtp::Engine::new(Some(Application::context()), addrs.as_str());
-        serv.reg_fun(1, handle1);
-        serv.reg_fun(2, handle2);
-        serv.reg_fun(3, handle3);
+        serv.set_limit(hbtp::LimitConfig {
+            max_ohther: 1024 * 10,       //10K
+            max_heads: 1024 * 100,       //100K
+            max_bodys: 1024 * 1024 * 10, //10M
+        });
+        serv.reg_fun(1, handle1, None).await;
+        serv.reg_fun(2, handle2, None).await;
+        serv.reg_fun(3, handle3, None).await;
         log::info!("server api start on:{}", addrs.as_str());
         if let Err(e) = serv.run().await {
             log::error!("server api run err:{}", e);
@@ -22,7 +27,12 @@ pub async fn runs<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     });
     let addrs = Application::get().addrs.clone();
     let serv = hbtp::Engine::new(Some(Application::context()), addrs.as_str());
-    serv.reg_fun(1, handles);
+    serv.set_limit(hbtp::LimitConfig {
+        max_ohther: 1024 * 10,  //10K
+        max_heads: 1024 * 100,  //100K
+        max_bodys: 1024 * 1024, //1M
+    });
+    serv.reg_fun(1, handles, None).await;
     log::info!("server start on:{}", addrs.as_str());
     if let Err(e) = serv.run().await {
         log::error!("server run err:{}", e);
