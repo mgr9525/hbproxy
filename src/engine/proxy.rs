@@ -5,7 +5,11 @@ use ruisutil::ArcMut;
 
 use crate::{
     app::Application,
-    entity::{conf::ProxyInfoConf, node::ProxyGoto, proxy::ProxyListRep},
+    entity::{
+        conf::ProxyInfoConf,
+        node::ProxyGoto,
+        proxy::{ProxyListIt, ProxyListRep},
+    },
     utils,
 };
 
@@ -218,12 +222,30 @@ impl ProxyEngine {
         Ok(proxy)
     }
 
+    pub async fn get_info(&self, name: &String) -> Option<ProxyListIt> {
+        //let mut rts = NodeListIt {  };
+        let lkv = self.inner.proxys.read().await;
+        let v = lkv.get(name)?;
+        Some(ProxyListIt {
+            name: v.conf().name.clone(),
+            remote: format!("{}:{}", v.conf().bind_host.as_str(), v.conf().bind_port),
+            proxy: format!(
+                "{}:{}",
+                v.conf().goto.proxy_host.as_str(),
+                v.conf().goto.proxy_port
+            ),
+            goto: v.conf().goto.clone(),
+            status: v.status(),
+            msg: v.msg(),
+        })
+    }
+
     pub async fn show_list(&self) -> io::Result<ProxyListRep> {
         let mut rts = ProxyListRep { list: Vec::new() };
         let lkv = self.inner.proxys.read().await;
         for (_, v) in lkv.iter() {
             // v.conf().name
-            rts.list.push(crate::entity::proxy::ProxyListIt {
+            rts.list.push(ProxyListIt {
                 name: v.conf().name.clone(),
                 remote: format!("{}:{}", v.conf().bind_host.as_str(), v.conf().bind_port),
                 proxy: format!(

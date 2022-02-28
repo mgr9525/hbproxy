@@ -78,6 +78,7 @@ async fn handle2(c: hbtp::Context) -> io::Result<()> {
     }
     match c.command() {
         "NodeList" => cs.node_list(c).await,
+        "NodeInfo" => cs.node_info(c).await,
         "NodeProxy" => cs.node_proxy(c).await,
         _ => Err(ruisutil::ioerr("Not found Method", None)),
     }
@@ -93,6 +94,7 @@ async fn handle3(c: hbtp::Context) -> io::Result<()> {
         return c.res_string(hbtp::ResCodeAuth, vs).await;
     }
     match c.command() {
+        "ProxyInfo" => cs.proxy_info(c).await,
         "ProxyAdd" => cs.proxy_add(c).await,
         "ProxyList" => cs.proxy_list(c).await,
         "ProxyStart" => cs.proxy_start(c).await,

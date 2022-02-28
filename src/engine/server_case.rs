@@ -183,6 +183,23 @@ impl ServerCase {
         let rts = self.inner.node.show_list().await?;
         c.res_json(hbtp::ResCodeOk, &rts).await
     }
+    pub async fn node_info(&self, c: hbtp::Context) -> io::Result<()> {
+        let nms = match c.get_arg("name") {
+            None => return c.res_string(hbtp::ResCodeErr, "param err:name").await,
+            Some(v) => {
+                if v.is_empty() {
+                    return c.res_string(hbtp::ResCodeErr, "param err:name").await;
+                } else {
+                    v
+                }
+            }
+        };
+        if let Some(rts) = self.inner.node.get_info(&nms).await {
+            c.res_json(hbtp::ResCodeOk, &rts).await
+        } else {
+            c.res_string(hbtp::ResCodeNotFound, "Not found node").await
+        }
+    }
     pub async fn node_proxy(&self, c: hbtp::Context) -> io::Result<()> {
         let data: ProxyGoto = c.body_json()?;
         c.res_string(hbtp::ResCodeOk, "ok").await?;
@@ -199,6 +216,23 @@ impl ServerCase {
         }
     }
 
+    pub async fn proxy_info(&self, c: hbtp::Context) -> io::Result<()> {
+        let nms = match c.get_arg("name") {
+            None => return c.res_string(hbtp::ResCodeErr, "param err:name").await,
+            Some(v) => {
+                if v.is_empty() {
+                    return c.res_string(hbtp::ResCodeErr, "param err:name").await;
+                } else {
+                    v
+                }
+            }
+        };
+        if let Some(rts) = self.inner.proxy.get_info(&nms).await {
+            c.res_json(hbtp::ResCodeOk, &rts).await
+        } else {
+            c.res_string(hbtp::ResCodeNotFound, "Not found node").await
+        }
+    }
     pub async fn proxy_add(&self, c: hbtp::Context) -> io::Result<()> {
         let data: RuleConfReq = c.body_json()?;
         if data.bind_host.is_empty() {

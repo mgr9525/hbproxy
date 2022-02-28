@@ -4,7 +4,7 @@ use async_std::{net::TcpStream, sync::RwLock, task};
 
 use crate::{
     engine::proxyer::{Proxyer, ProxyerCfg},
-    entity::node::{NodeConnMsg, NodeListRep, ProxyGoto, RegNodeReq},
+    entity::node::{NodeConnMsg, NodeListIt, NodeListRep, ProxyGoto, RegNodeReq},
 };
 
 use super::{NodeServer, NodeServerCfg};
@@ -88,17 +88,47 @@ impl NodeEngine {
             lkv.remove(nm);
         }
     } */
+
+    pub async fn get_info(&self, name: &String) -> Option<NodeListIt> {
+        //let mut rts = NodeListIt {  };
+        let lkv = self.inner.nodes.read().await;
+        let v = lkv.get(name)?;
+        Some(NodeListIt {
+            name: v.conf().name.clone(),
+            version: v.conf().version.clone(),
+            online: v.online(),
+            online_times: match v.online_time() {
+                Err(_) => 0,
+                Ok(v) => v.as_secs(),
+            },
+            outline_times: match v.outline_time() {
+                Err(_) => None,
+                Ok(v) => Some(v.as_secs()),
+            },
+            addrs: match v.peer_addr() {
+                Err(e) => {
+                    log::error!("peer_addr err:{}", e);
+                    None
+                }
+                Ok(v) => Some(v),
+            },
+        })
+    }
+
     pub async fn show_list(&self) -> io::Result<NodeListRep> {
         let mut rts = NodeListRep { list: Vec::new() };
         let lkv = self.inner.nodes.read().await;
         for k in lkv.keys() {
             if let Some(v) = lkv.get(k) {
                 // v.conf().name
-                rts.list.push(crate::entity::node::NodeListIt {
+                rts.list.push(NodeListIt {
                     name: v.conf().name.clone(),
                     version: v.conf().version.clone(),
                     online: v.online(),
-                    online_times: v.online_time()?.as_secs(),
+                    online_times: match v.online_time() {
+                        Err(_) => 0,
+                        Ok(v) => v.as_secs(),
+                    },
                     outline_times: match v.outline_time() {
                         Err(_) => None,
                         Ok(v) => Some(v.as_secs()),
