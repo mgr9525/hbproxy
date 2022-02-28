@@ -11,7 +11,7 @@ pub async fn runs<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     Application::get_mut().server_case = Some(cs);
     task::spawn(async move {
         let serv = hbtp::Engine::new(Some(Application::context()), addrs.as_str());
-        serv.set_limit(hbtp::LimitConfig {
+        serv.set_lmt_max(hbtp::LmtMaxConfig {
             max_ohther: 1024 * 10,       //10K
             max_heads: 1024 * 100,       //100K
             max_bodys: 1024 * 1024 * 10, //10M
@@ -27,7 +27,7 @@ pub async fn runs<'a>(_: &clap::ArgMatches<'a>) -> i32 {
     });
     let addrs = Application::get().addrs.clone();
     let serv = hbtp::Engine::new(Some(Application::context()), addrs.as_str());
-    serv.set_limit(hbtp::LimitConfig {
+    serv.set_lmt_max(hbtp::LmtMaxConfig {
         max_ohther: 1024 * 10,  //10K
         max_heads: 1024 * 100,  //100K
         max_bodys: 1024 * 1024, //1M
