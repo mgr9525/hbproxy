@@ -3,7 +3,7 @@ pub mod msg;
 
 pub use util::{remote_version,envs,ymlfile,mytimes};
 
-pub const HbtpTokenErr: i32 = 100;
+pub const HBTP_TOKEN_ERR: i32 = 100;
 
 
 

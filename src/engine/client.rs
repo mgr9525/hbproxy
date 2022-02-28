@@ -271,7 +271,7 @@ impl NodeClient {
                 task::sleep(Duration::from_secs(5)).await;
             }
             Ok(mut res) => {
-                if res.get_code() == utils::HbtpTokenErr {
+                if res.get_code() == utils::HBTP_TOKEN_ERR {
                     return Err(ruisutil::ioerr(
                         "name is exists",
                         Some(io::ErrorKind::AlreadyExists),

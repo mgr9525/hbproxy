@@ -152,7 +152,7 @@ impl ServerCase {
             0 => {}
             1 => log::debug!("replace node:{}", data.name.as_str()),
             3 => return c.res_string(hbtp::ResCodeErr, "lock err").await,
-            _ => return c.res_string(utils::HbtpTokenErr, "token err").await, //已存在同名node
+            _ => return c.res_string(utils::HBTP_TOKEN_ERR, "token err").await, //已存在同名node
         };
 
         let cfg = NodeServerCfg {

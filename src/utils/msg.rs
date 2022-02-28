@@ -8,18 +8,18 @@ use ruisutil::bytes::{self, ByteBoxBuf};
 struct MsgInfo {
     pub version: u16,
     pub control: i32,
-    pub lenCmd: u16,
-    pub lenHead: u32,
-    pub lenBody: u32,
+    pub len_cmd: u16,
+    pub len_head: u32,
+    pub len_body: u32,
 }
 impl MsgInfo {
     pub fn new() -> Self {
         Self {
             version: 0,
             control: 0,
-            lenCmd: 0,
-            lenHead: 0,
-            lenBody: 0,
+            len_cmd: 0,
+            len_head: 0,
+            len_body: 0,
         }
     }
 }
@@ -76,17 +76,17 @@ pub async fn parse_msg(ctxs: &ruisutil::Context, conn: &mut TcpStream) -> io::Re
     let infoln = mem::size_of::<MsgInfo>();
     let bts = ruisutil::tcp_read_async(ctxs, conn, infoln).await?;
     ruisutil::byte2struct(&mut info, &bts[..])?;
-    if (info.lenHead) as u64 > MAX_HEADS {
+    if (info.len_head) as u64 > MAX_HEADS {
         return Err(ruisutil::ioerr("bytes2 out limit!!", None));
     }
-    if (info.lenBody) as u64 > MAX_BODYS {
+    if (info.len_body) as u64 > MAX_BODYS {
         return Err(ruisutil::ioerr("bytes3 out limit!!", None));
     }
 
     let mut rt = Message::new();
     rt.version = info.version;
     rt.control = info.control;
-    let lnsz = info.lenCmd as usize;
+    let lnsz = info.len_cmd as usize;
     if lnsz > 0 {
         let bts = ruisutil::tcp_read_async(&ctxs, conn, lnsz).await?;
         rt.cmds = match std::str::from_utf8(&bts[..]) {
@@ -94,12 +94,12 @@ pub async fn parse_msg(ctxs: &ruisutil::Context, conn: &mut TcpStream) -> io::Re
             Ok(v) => String::from(v),
         };
     }
-    let lnsz = info.lenHead as usize;
+    let lnsz = info.len_head as usize;
     if lnsz > 0 {
         let bts = ruisutil::tcp_read_async(&ctxs, conn, lnsz as usize).await?;
         rt.heads = Some(bts);
     }
-    let lnsz = info.lenBody as usize;
+    let lnsz = info.len_body as usize;
     if lnsz > 0 {
         let bts = ruisutil::tcp_read_async(&ctxs, conn, lnsz as usize).await?;
         rt.bodys = Some(bts);
@@ -124,17 +124,17 @@ pub async fn send_msg(
     bds: Option<Box<[u8]>>,
 ) -> io::Result<()> {
     let mut info = MsgInfo::new();
-    let infoln = mem::size_of::<MsgInfo>();
+    // let infoln = mem::size_of::<MsgInfo>();
     info.version = 1;
     info.control = ctrl;
     if let Some(v) = &cmds {
-        info.lenCmd = v.len() as u16;
+        info.len_cmd = v.len() as u16;
     }
     if let Some(v) = &hds {
-        info.lenHead = v.len() as u32;
+        info.len_head = v.len() as u32;
     }
     if let Some(v) = &bds {
-        info.lenBody = v.len() as u32;
+        info.len_body = v.len() as u32;
     }
     ruisutil::tcp_write_async(ctxs, conn, &[0x8du8, 0x8fu8]).await?;
     let bts = ruisutil::struct2byte(&info);
@@ -168,17 +168,17 @@ pub async fn send_msg_buf(
     bds: Option<ByteBoxBuf>,
 ) -> io::Result<()> {
     let mut info = MsgInfo::new();
-    let infoln = mem::size_of::<MsgInfo>();
+    // let infoln = mem::size_of::<MsgInfo>();
     info.version = 1;
     info.control = ctrl;
     if let Some(v) = &cmds {
-        info.lenCmd = v.len() as u16;
+        info.len_cmd = v.len() as u16;
     }
     if let Some(v) = &hds {
-        info.lenHead = v.len() as u32;
+        info.len_head = v.len() as u32;
     }
     if let Some(v) = &bds {
-        info.lenBody = v.len() as u32;
+        info.len_body = v.len() as u32;
     }
     ruisutil::tcp_write_async(ctxs, conn, &[0x8du8, 0x8fu8]).await?;
     let bts = ruisutil::struct2byte(&info);
