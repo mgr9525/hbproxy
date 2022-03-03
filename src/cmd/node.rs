@@ -16,13 +16,6 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     } else {
         "unkown"
     };
-    match utils::remote_version(Application::new_req(1, "version", false)).await {
-        Err(e) => {
-            eprintln!("remote version err:{}", e);
-            // return -1;
-        }
-        Ok(v) => println!("remote version:{}", v.as_str()),
-    };
 
     match engine::NodeClient::runs(names.into()).await {
         Err(e) => {

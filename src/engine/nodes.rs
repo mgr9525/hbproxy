@@ -169,10 +169,10 @@ impl NodeEngine {
         Err(ruisutil::ioerr("node not found", None))
     }
 
-    pub async fn put_conn(&self, data: NodeConnMsg, conn: TcpStream) -> io::Result<()> {
+    pub async fn put_conn(&self, name:&String,xids:&String, conn: TcpStream) -> io::Result<()> {
         let lkv = self.inner.nodes.read().await;
-        if let Some(v) = lkv.get(&data.name) {
-            v.put_conn(&data.xids, conn).await?;
+        if let Some(v) = lkv.get(name) {
+            v.put_conn(xids, conn).await?;
         }
         Ok(())
     }

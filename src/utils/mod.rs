@@ -1,7 +1,7 @@
 mod util;
 pub mod msg;
 
-pub use util::{remote_version,envs,ymlfile,mytimes};
+pub use util::{remote_version,envs,ymlfile,mytimes,compare_version,CompareVersion};
 
 pub const HBTP_TOKEN_ERR: i32 = 100;
 

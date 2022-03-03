@@ -13,6 +13,7 @@ use crate::{
 pub struct NodeClientCfg {
     pub name: String,
     pub token: Option<String>,
+    pub remote_version:String,
 }
 #[derive(Clone)]
 pub struct NodeClient {
@@ -164,59 +165,82 @@ impl NodeClient {
                     log::debug!("need new conn:{}", data.xids.as_str());
 
                     let c = self.clone();
-                    task::spawn(async move { c.new_conn(data).await });
+                    task::spawn(async move {
+                      match utils::compare_version(&c.inner.cfg.remote_version, "0.2.3".to_string()){
+                        utils::CompareVersion::Less|utils::CompareVersion::Eq=> c.new_conn(data).await,
+                        _=> c.new_conns(data).await,
+                      }
+                    });
                 }
             }
             _ => {}
         }
     }
     async fn new_conn(&self, data: NodeConnMsg) {
+        // log::debug!("start new_conn -> :{}",data.port);
         let mut req = Application::new_req(1, "NodeConn", false);
         match req.do_json(None, &data).await {
             Err(e) => {
                 log::error!("new_conn request do err:{}", e);
             }
-            Ok(mut res) => {
-                if res.get_code() == hbtp::ResCodeOk {
-                    if let Some(bs) = res.get_bodys() {
-                        if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                            log::debug!("new_conn ok:{}", vs);
-                        }
-                    }
-
-                    let hosts = match &data.host {
-                        None => self.inner.connhost.as_str(),
-                        Some(v) => v.as_str(),
-                    };
-                    let addrs = format!("{}:{}", hosts, data.port);
-                    let connlc = match TcpStream::connect(addrs.as_str()).await {
-                        Ok(v) => v,
-                        Err(e) => {
-                            log::error!("new_conn Proxyer err:{}", e);
-                            return;
-                        }
-                    };
-                    log::debug!("client Proxyer start on -> {}", addrs.as_str());
-                    let px = Proxyer::new(
-                        self.inner.ctx.clone(),
-                        ProxyerCfg {
-                            ids: addrs,
-                            limit: None,
-                        },
-                        res.own_conn(),
-                        connlc,
-                    );
-                    // let px = Proxyer::new(self.inner.ctx.clone(), res.own_conn(), data.port);
-                    px.start().await;
-                } else {
-                    if let Some(bs) = res.get_bodys() {
-                        if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                            log::error!("response err:{}", vs);
-                        }
-                    }
-                }
+            Ok(res) => {
+                self.start_conn(res, &data.host, data.port).await;
             }
         }
+    }
+    async fn new_conns(&self, data: NodeConnMsg) {
+      // log::debug!("start new_conns -> :{}",data.port);
+        let mut req = Application::new_req(1, "NodeConns", false);
+        req.add_arg("name", data.name.as_str());
+        req.add_arg("xid", data.xids.as_str());
+        match req.dors(None, None).await {
+            Err(e) => {
+                log::error!("new_conn request do err:{}", e);
+            }
+            Ok(res) => {
+                self.start_conn(res, &data.host, data.port).await;
+            }
+        }
+    }
+    async fn start_conn(&self, mut res: hbtp::Response,host:&Option<String>,port:i32) {
+      if res.get_code() == hbtp::ResCodeOk {
+        if let Some(bs) = res.get_bodys() {
+            if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                log::debug!("new_conn ok:{}", vs);
+            }
+        }
+
+        let hosts = match host {
+            None => self.inner.connhost.as_str(),
+            Some(v) => v.as_str(),
+        };
+        let addrs = format!("{}:{}", hosts, port);
+        let connlc = match TcpStream::connect(addrs.as_str()).await {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("new_conn Proxyer err:{}", e);
+                return;
+            }
+        };
+        log::debug!("client Proxyer start on -> {}", addrs.as_str());
+        let px = Proxyer::new(
+            self.inner.ctx.clone(),
+            ProxyerCfg {
+                ids: addrs,
+                limit: None,
+            },
+            res.own_conn(),
+            connlc,
+        );
+        // let px = Proxyer::new(self.inner.ctx.clone(), res.own_conn(), data.port);
+        px.start().await;
+    } else {
+        if let Some(bs) = res.get_bodys() {
+            if let Ok(vs) = std::str::from_utf8(&bs[..]) {
+                log::error!("response err:{}", vs);
+            }
+        }
+    }
     }
 
 
@@ -224,12 +248,23 @@ impl NodeClient {
         let mut cfg = NodeClientCfg {
             name: name,
             token: None,
+            remote_version:String::new(),
         };
         // let mut conns = None;
         while !Application::context().done() {
+            let vers=match utils::remote_version(Application::new_req(1, "version", false)).await {
+                Err(e) => {
+                    log::error!("remote version err:{}", e);
+                    continue;
+                    // return -1;
+                }
+                Ok(v) => v,
+            };
+            println!("remote version:{}", vers.as_str());
             match Self::connect(&cfg).await {
                 Ok((conn, data)) => {
                     cfg.token = Some(data.token.clone());
+                    cfg.remote_version=vers;
                     // conns = Some(conn);
                     let cli = Self::new(Application::context(), cfg.clone(), conn);
                     cli.run().await;
