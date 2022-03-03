@@ -260,6 +260,7 @@ impl NodeClient {
             {
                 Err(e) => {
                     log::error!("remote version err:{}", e);
+                    task::sleep(Duration::from_secs(3)).await;
                     continue;
                     // return -1;
                 }
