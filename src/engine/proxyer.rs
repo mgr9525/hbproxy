@@ -233,7 +233,7 @@ impl Proxyer {
             if let Some(v) = bts {
                 ruisutil::tcp_write_async(&self.inner.ctx, &mut ins.conn, &v).await?;
                 *count += v.len();
-                
+
                 if let Some(lmv) = lmt {
                     ln += v.len();
                     if lmv > 0 && ln >= lmv {

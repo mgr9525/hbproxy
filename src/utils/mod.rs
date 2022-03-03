@@ -1,11 +1,9 @@
-mod util;
 pub mod msg;
+mod util;
 
-pub use util::{remote_version,envs,ymlfile,mytimes,compare_version,CompareVersion};
+pub use util::{compare_version, envs, mytimes, remote_version, ymlfile, CompareVersion};
 
 pub const HBTP_TOKEN_ERR: i32 = 100;
-
-
 
 /// Declares Unix-specific items.
 #[allow(unused_macros)]

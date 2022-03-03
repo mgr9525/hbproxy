@@ -175,27 +175,30 @@ impl ServerCase {
 
     pub async fn node_conn(&self, c: hbtp::Context) -> io::Result<()> {
         let data: NodeConnMsg = c.body_json()?;
-        if data.name.is_empty()||data.xids.is_empty(){
-          return Err(ruisutil::ioerr("param errs", None));
+        if data.name.is_empty() || data.xids.is_empty() {
+            return Err(ruisutil::ioerr("param errs", None));
         }
         c.res_string(hbtp::ResCodeOk, "ok").await?;
-        self.inner.node.put_conn(&data.name,&data.xids, c.own_conn()).await
+        self.inner
+            .node
+            .put_conn(&data.name, &data.xids, c.own_conn())
+            .await
     }
 
     pub async fn node_conns(&self, c: hbtp::Context) -> io::Result<()> {
-        let name=match c.get_arg("name"){
-          None=>return Err(ruisutil::ioerr("param err:name", None)),
-          Some(v)=>v,
+        let name = match c.get_arg("name") {
+            None => return Err(ruisutil::ioerr("param err:name", None)),
+            Some(v) => v,
         };
-        let xids=match c.get_arg("xid"){
-          None=>return Err(ruisutil::ioerr("param err:name", None)),
-          Some(v)=>v,
+        let xids = match c.get_arg("xid") {
+            None => return Err(ruisutil::ioerr("param err:name", None)),
+            Some(v) => v,
         };
-        if name.is_empty()||xids.is_empty(){
-          return Err(ruisutil::ioerr("param errs", None));
+        if name.is_empty() || xids.is_empty() {
+            return Err(ruisutil::ioerr("param errs", None));
         }
         c.res_string(hbtp::ResCodeOk, "ok").await?;
-        self.inner.node.put_conn(&name,&xids, c.own_conn()).await
+        self.inner.node.put_conn(&name, &xids, c.own_conn()).await
     }
 
     pub async fn node_list(&self, c: hbtp::Context) -> io::Result<()> {

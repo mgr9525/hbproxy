@@ -49,10 +49,10 @@ async fn handles(c: hbtp::Context) -> io::Result<()> {
             return Err(ruisutil::ioerr("not init ok!!!", None));
         }
     };
-    if c.command()!="version"{
-      if let Some(vs) = cs.authed_server(&c) {
-          return c.res_string(hbtp::ResCodeAuth, vs).await;
-      }
+    if c.command() != "version" {
+        if let Some(vs) = cs.authed_server(&c) {
+            return c.res_string(hbtp::ResCodeAuth, vs).await;
+        }
     }
     match c.command() {
         "version" => c.res_string(hbtp::ResCodeOk, crate::app::VERSION).await,
