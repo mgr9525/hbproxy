@@ -29,10 +29,15 @@ struct Inner {
     msgs: Mutex<LinkedList<Messages>>,
 
     connhost: String,
+    isoldconn: bool,
 }
 
 impl NodeClient {
     pub fn new(ctx: ruisutil::Context, cfg: NodeClientCfg, conn: TcpStream) -> Self {
+        let isold = match utils::compare_version(&cfg.remote_version, "0.2.3".into()) {
+            utils::CompareVersion::Less | utils::CompareVersion::Eq => true,
+            _ => false,
+        };
         Self {
             inner: ruisutil::ArcMut::new(Inner {
                 ctx: ruisutil::Context::background(Some(ctx)),
@@ -43,6 +48,7 @@ impl NodeClient {
                 msgs: Mutex::new(LinkedList::new()),
 
                 connhost: utils::envs("HBPROXY_CLI2HOST", "localhost"),
+                isoldconn: isold,
             }),
         }
     }
@@ -166,14 +172,10 @@ impl NodeClient {
 
                     let c = self.clone();
                     task::spawn(async move {
-                        match utils::compare_version(
-                            &c.inner.cfg.remote_version,
-                            "0.2.3".to_string(),
-                        ) {
-                            utils::CompareVersion::Less | utils::CompareVersion::Eq => {
-                                c.new_conn(data).await
-                            }
-                            _ => c.new_conns(data).await,
+                        if c.inner.isoldconn {
+                            c.new_conn(data).await;
+                        } else {
+                            c.new_conns(data).await;
                         }
                     });
                 }
@@ -194,7 +196,7 @@ impl NodeClient {
         }
     }
     async fn new_conns(&self, data: NodeConnMsg) {
-        // log::debug!("start new_conns -> :{}",data.port);
+        log::debug!("start new_conns -> :{}",data.port);
         let mut req = Application::new_req(1, "NodeConns", false);
         req.add_arg("name", data.name.as_str());
         req.add_arg("xid", data.xids.as_str());
@@ -211,7 +213,7 @@ impl NodeClient {
         if res.get_code() == hbtp::ResCodeOk {
             if let Some(bs) = res.get_bodys() {
                 if let Ok(vs) = std::str::from_utf8(&bs[..]) {
-                    log::debug!("new_conn ok:{}", vs);
+                    log::debug!("start_conn ok:{}", vs);
                 }
             }
 
@@ -223,7 +225,7 @@ impl NodeClient {
             let connlc = match TcpStream::connect(addrs.as_str()).await {
                 Ok(v) => v,
                 Err(e) => {
-                    log::error!("new_conn Proxyer err:{}", e);
+                    log::error!("start_conn Proxyer err:{}", e);
                     return;
                 }
             };
