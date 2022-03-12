@@ -37,10 +37,15 @@ struct Inner {
     ctmout: ruisutil::Timer,
 
     msgs: Mutex<VecDeque<Messages>>,
-    waits: RwLock<HashMap<String, Mutex<Option<TcpStream>>>>,
+    waits: RwLock<HashMap<String, Mutex<WaitItem>>>,
 
     oln_time: SystemTime,
     otln_time: SystemTime,
+}
+
+struct WaitItem {
+    pub stat: i8,
+    pub conn: Option<TcpStream>,
 }
 
 impl NodeServer {
@@ -231,11 +236,16 @@ impl NodeServer {
         }
     }
 
-    pub async fn put_conn(&self, xids: &String, conn: TcpStream) -> io::Result<()> {
+    pub async fn put_conn(&self, xids: &String, conn: Option<TcpStream>) -> io::Result<()> {
         let lkv = self.inner.waits.read().await;
         if let Some(mkv) = lkv.get(xids) {
             let mut v = mkv.lock().await;
-            *v = Some(conn);
+            if let Some(cn) = conn {
+                v.stat = 1;
+                v.conn = Some(cn);
+            } else {
+                v.stat = -1
+            }
             return Ok(());
         }
         Err(ruisutil::ioerr("timeout", None))
@@ -243,6 +253,7 @@ impl NodeServer {
     pub async fn wait_conn(&self, host: &Option<String>, port: i32) -> io::Result<TcpStream> {
         // let ins = unsafe { self.inner.muts() };
         let mut xids;
+        let mut rterr=ruisutil::ioerr("this is outline", None);
         {
             let lkv = self.inner.waits.read().await;
             loop {
@@ -262,7 +273,13 @@ impl NodeServer {
         }
         {
             let mut lkv = self.inner.waits.write().await;
-            lkv.insert(xids.clone(), Mutex::new(None));
+            lkv.insert(
+                xids.clone(),
+                Mutex::new(WaitItem {
+                    stat: 0,
+                    conn: None,
+                }),
+            );
         }
         let bds = match serde_json::to_vec(&NodeConnMsg {
             name: self.inner.cfg.name.clone(),
@@ -284,29 +301,31 @@ impl NodeServer {
                 });
             }
 
+            rterr=ruisutil::ioerr("timeout", None);
             let ctx = ruisutil::Context::with_timeout(
                 Some(self.inner.ctx.clone()),
                 Duration::from_secs(10),
             );
             let mut rets = None;
             while !ctx.done() {
-                let mut hased = false;
+                let mut stat = 0;
                 {
                     let lkv = self.inner.waits.read().await;
                     if let Some(mkv) = lkv.get(&xids) {
-                        let mut v = mkv.lock().await;
-                        if let Some(_) = &mut *v {
-                            hased = true;
-                        }
+                        let v = mkv.lock().await;
+                        stat = v.stat;
                     }
                 }
-                if hased {
+                if stat==1 {
                     let mut lkv = self.inner.waits.write().await;
                     if let Some(mkv) = lkv.remove(&xids) {
                         let mut v = mkv.lock().await;
-                        rets = std::mem::replace(&mut v, None);
+                        rets = std::mem::replace(&mut v.conn, None);
                         break;
                     }
+                }else if stat==-1{
+                  rterr=ruisutil::ioerr("local conn err", None);
+                  break
                 }
                 task::sleep(Duration::from_millis(10)).await;
             }
@@ -316,6 +335,6 @@ impl NodeServer {
         }
         let mut lkv = self.inner.waits.write().await;
         lkv.remove(&xids);
-        Err(ruisutil::ioerr("timeout", None))
+        Err(rterr)
     }
 }

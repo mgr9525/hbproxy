@@ -59,7 +59,7 @@ impl NodeClient {
             log::error!("stop shutdown err:{}", e);
         }
     }
-    pub async fn run(self)->io::Result<()> {
+    pub async fn run(self) -> io::Result<()> {
         /* match utils::compare_version(&self.inner.cfg.remote_version, "0.3.0".into()) {
             utils::CompareVersion::Less => {
                 return Err(ruisutil::ioerr("remote version is too old", None));
@@ -179,64 +179,78 @@ impl NodeClient {
 
                     let c = self.clone();
                     task::spawn(async move {
-                        if c.inner.isoldconn {
-                            c.new_conn(data).await;
-                        } else {
-                            c.new_conns(data).await;
-                        }
+                        c.task_conn(data).await;
                     });
                 }
             }
             _ => {}
         }
     }
-    async fn new_conn(&self, data: NodeConnMsg) {
+
+    async fn task_conn(&self, data: NodeConnMsg) {
+        let hosts = match &data.host {
+            None => self.inner.connhost.as_str(),
+            Some(v) => v.as_str(),
+        };
+        let addrs = format!("{}:{}", hosts, data.port);
+        let connlc = match TcpStream::connect(addrs.as_str()).await {
+            Ok(v) => Some(v),
+            Err(e) => {
+                log::error!("start_conn Proxyer err:{}", e);
+                None
+            }
+        };
+        log::debug!("client Proxyer start on -> {}", addrs.as_str());
+        if self.inner.isoldconn {
+            self.new_conn(data, addrs, connlc).await;
+        } else {
+            self.new_conns(data, addrs, connlc).await;
+        }
+    }
+    async fn new_conn(&self, data: NodeConnMsg, addrs: String, conn: Option<TcpStream>) {
         // log::debug!("start new_conn -> :{}",data.port);
         let mut req = Application::new_req(1, "NodeConn", false);
+        if let None = conn {
+            req.add_arg("err", "1");
+        }
         match req.do_json(None, &data).await {
             Err(e) => {
                 log::error!("new_conn request do err:{}", e);
             }
             Ok(res) => {
-                self.start_conn(res, &data.host, data.port).await;
+                if let Some(connlc) = conn {
+                    self.start_conn(res, addrs, connlc).await;
+                }
             }
         }
     }
-    async fn new_conns(&self, data: NodeConnMsg) {
+    async fn new_conns(&self, data: NodeConnMsg, addrs: String, conn: Option<TcpStream>) {
         log::debug!("start new_conns -> :{}", data.port);
         let mut req = Application::new_req(1, "NodeConns", false);
         req.add_arg("name", data.name.as_str());
         req.add_arg("xid", data.xids.as_str());
+        if let None = conn {
+            req.add_arg("err", "1");
+        }
         match req.dors(None, None).await {
             Err(e) => {
                 log::error!("new_conn request do err:{}", e);
             }
             Ok(res) => {
-                self.start_conn(res, &data.host, data.port).await;
+                if let Some(connlc) = conn {
+                    self.start_conn(res, addrs, connlc).await;
+                }
             }
         }
     }
-    async fn start_conn(&self, mut res: hbtp::Response, host: &Option<String>, port: i32) {
+    async fn start_conn(&self, mut res: hbtp::Response, addrs: String, connlc: TcpStream) {
         if res.get_code() == hbtp::ResCodeOk {
-            if let Some(bs) = res.get_bodys() {
+            /* if let Some(bs) = res.get_bodys() {
                 if let Ok(vs) = std::str::from_utf8(&bs[..]) {
                     log::debug!("start_conn ok:{}", vs);
                 }
-            }
+            } */
 
-            let hosts = match host {
-                None => self.inner.connhost.as_str(),
-                Some(v) => v.as_str(),
-            };
-            let addrs = format!("{}:{}", hosts, port);
-            let connlc = match TcpStream::connect(addrs.as_str()).await {
-                Ok(v) => v,
-                Err(e) => {
-                    log::error!("start_conn Proxyer err:{}", e);
-                    return;
-                }
-            };
-            log::debug!("client Proxyer start on -> {}", addrs.as_str());
             let px = Proxyer::new(
                 self.inner.ctx.clone(),
                 ProxyerCfg {
@@ -282,10 +296,10 @@ impl NodeClient {
                     cfg.remote_version = vers;
                     // conns = Some(conn);
                     let cli = Self::new(Application::context(), cfg.clone(), conn);
-                    if let Err(e) = cli.run().await{
-                      log::error!("run err:{}",e);
-                      task::sleep(Duration::from_secs(3)).await;
-                      continue;
+                    if let Err(e) = cli.run().await {
+                        log::error!("run err:{}", e);
+                        task::sleep(Duration::from_secs(3)).await;
+                        continue;
                     }
                 }
                 Err(e) => {

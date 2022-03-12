@@ -181,7 +181,7 @@ impl ServerCase {
         c.res_string(hbtp::ResCodeOk, "ok").await?;
         self.inner
             .node
-            .put_conn(&data.name, &data.xids, c.own_conn())
+            .put_conn(&data.name, &data.xids, Some(c.own_conn()))
             .await
     }
 
@@ -194,11 +194,19 @@ impl ServerCase {
             None => return Err(ruisutil::ioerr("param err:name", None)),
             Some(v) => v,
         };
+        let iserr = match c.get_arg("err") {
+            None => false,
+            Some(v) => v == "1",
+        };
         if name.is_empty() || xids.is_empty() {
             return Err(ruisutil::ioerr("param errs", None));
         }
         c.res_string(hbtp::ResCodeOk, "ok").await?;
-        self.inner.node.put_conn(&name, &xids, c.own_conn()).await
+
+        self.inner
+            .node
+            .put_conn(&name, &xids, if iserr { None } else { Some(c.own_conn()) })
+            .await
     }
 
     pub async fn node_list(&self, c: hbtp::Context) -> io::Result<()> {
