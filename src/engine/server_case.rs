@@ -9,7 +9,7 @@ use crate::{
     app::Application,
     engine::{NodeEngine, NodeServerCfg, ProxyEngine, RuleCfg},
     entity::{
-        node::{NodeConnMsg, ProxyGoto, RegNodeRep, RegNodeReq},
+        node::{NodeConnMsg, ProxyGoto, RegNodeRep, RegNodeReq, ProxyGotoReq},
         proxy::RuleConfReq,
     },
     utils,
@@ -232,8 +232,8 @@ impl ServerCase {
     }
 
     pub async fn node_proxy(&self, c: hbtp::Context) -> io::Result<()> {
-        let datas: Vec<ProxyGoto> = c.body_json()?;
-        for v in &datas {
+        let data: ProxyGotoReq = c.body_json()?;
+        for v in &data.proxys {
             match self.inner.node.wait_connlc(&v).await {
                 Err(e) => log::error!("run_cli node.proxy err:{}", e),
                 Ok(connlc) => {

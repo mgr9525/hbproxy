@@ -33,14 +33,18 @@ pub struct NodeConnMsg {
     pub name: String,
     pub xids: String,
     // pub token: String,
-    pub host:Option<String>,
+    pub host: Option<String>,
     pub port: i32,
 }
 
-#[derive(Clone,Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
+pub struct ProxyGotoReq {
+    pub proxys: Vec<ProxyGoto>,
+}
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ProxyGoto {
-  pub proxy_host: String,
-  pub proxy_port: i32,
-  pub localhost: Option<String>,
-  pub limit:Option<ProxyLimit>,
+    pub proxy_host: String,
+    pub proxy_port: i32,
+    pub localhost: Option<String>,
+    pub limit: Option<ProxyLimit>,
 }
