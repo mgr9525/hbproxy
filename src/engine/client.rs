@@ -59,11 +59,10 @@ impl NodeClient {
             log::error!("stop shutdown err:{}", e);
         }
     }
-    pub async fn run(self) {
+    pub async fn run(self)->io::Result<()> {
         match utils::compare_version(&self.inner.cfg.remote_version, "0.3.0".into()) {
             utils::CompareVersion::Less => {
-                log::error!("remote version is too old");
-                return;
+                return Err(ruisutil::ioerr("remote version is too old", None));
             }
             _ => {}
         };
@@ -99,6 +98,7 @@ impl NodeClient {
         );
         wg.waits().await;
         log::debug!("NodeClient run waits end:{}", self.inner.cfg.name.as_str());
+        Ok(())
     }
 
     pub async fn run_recv(&self) {
@@ -282,7 +282,11 @@ impl NodeClient {
                     cfg.remote_version = vers;
                     // conns = Some(conn);
                     let cli = Self::new(Application::context(), cfg.clone(), conn);
-                    cli.run().await;
+                    if let Err(e) = cli.run().await{
+                      log::error!("run err:{}",e);
+                      task::sleep(Duration::from_secs(3)).await;
+                      continue;
+                    }
                 }
                 Err(e) => {
                     if e.kind() == io::ErrorKind::AlreadyExists {
