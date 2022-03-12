@@ -222,7 +222,7 @@ impl ServerCase {
             c.res_string(hbtp::ResCodeNotFound, "Not found node").await
         }
     }
-    fn node_proxys() {}
+
     pub async fn node_proxy(&self, c: hbtp::Context) -> io::Result<()> {
         let datas: Vec<ProxyGoto> = c.body_json()?;
         for v in &datas {
