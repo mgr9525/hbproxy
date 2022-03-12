@@ -60,12 +60,12 @@ impl NodeClient {
         }
     }
     pub async fn run(self)->io::Result<()> {
-        match utils::compare_version(&self.inner.cfg.remote_version, "0.3.0".into()) {
+        /* match utils::compare_version(&self.inner.cfg.remote_version, "0.3.0".into()) {
             utils::CompareVersion::Less => {
                 return Err(ruisutil::ioerr("remote version is too old", None));
             }
             _ => {}
-        };
+        }; */
         self.inner.ctmout.reset();
         let wg = ruisutil::WaitGroup::new();
         let c = self.clone();
