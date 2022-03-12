@@ -146,7 +146,7 @@ impl ProxyEngine {
         } else {
             return Err(ruisutil::ioerr("bind port err", None));
         };
-        let gotols: Vec<&str> = cfg.proxy.split(":").collect();
+        /* let gotols: Vec<&str> = cfg.proxy.split(":").collect();
         if gotols.len() != 2 {
             return Err(ruisutil::ioerr("goto len err", None));
         }
@@ -157,7 +157,7 @@ impl ProxyEngine {
             v
         } else {
             return Err(ruisutil::ioerr("goto port err", None));
-        };
+        }; */
         let data = RuleCfg {
             name: match &cfg.name {
                 None => format!("b{}{}", bindport, ruisutil::random(5).as_str()),
@@ -169,16 +169,7 @@ impl ProxyEngine {
                 bindls[0].to_string()
             },
             bind_port: bindport,
-            goto: ProxyGoto {
-                proxy_host: if gotols[0].is_empty() {
-                    "localhost".to_string()
-                } else {
-                    gotols[0].to_string()
-                },
-                proxy_port: gotoport,
-                localhost: cfg.localhost.clone(),
-                limit: cfg.limit.clone(),
-            },
+            goto: cfg.convs_proxy_goto()?,
         };
         match self.add_check(&data).await {
             0 => {}
@@ -229,11 +220,11 @@ impl ProxyEngine {
         Some(ProxyListIt {
             name: v.conf().name.clone(),
             remote: format!("{}:{}", v.conf().bind_host.as_str(), v.conf().bind_port),
-            proxy: format!(
+            /* proxy: format!(
                 "{}:{}",
                 v.conf().goto.proxy_host.as_str(),
                 v.conf().goto.proxy_port
-            ),
+            ), */
             goto: v.conf().goto.clone(),
             status: v.status(),
             msg: v.msg(),
@@ -248,11 +239,11 @@ impl ProxyEngine {
             rts.list.push(ProxyListIt {
                 name: v.conf().name.clone(),
                 remote: format!("{}:{}", v.conf().bind_host.as_str(), v.conf().bind_port),
-                proxy: format!(
+                /* proxy: format!(
                     "{}:{}",
                     v.conf().goto.proxy_host.as_str(),
                     v.conf().goto.proxy_port
-                ),
+                ), */
                 goto: v.conf().goto.clone(),
                 status: v.status(),
                 msg: v.msg(),

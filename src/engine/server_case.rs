@@ -222,10 +222,20 @@ impl ServerCase {
             c.res_string(hbtp::ResCodeNotFound, "Not found node").await
         }
     }
+    fn node_proxys() {}
     pub async fn node_proxy(&self, c: hbtp::Context) -> io::Result<()> {
-        let data: ProxyGoto = c.body_json()?;
-        c.res_string(hbtp::ResCodeOk, "ok").await?;
-        self.inner.node.proxy(&data, c.own_conn()).await
+        let datas: Vec<ProxyGoto> = c.body_json()?;
+        for v in &datas {
+            match self.inner.node.wait_connlc(&v).await {
+                Err(e) => log::error!("run_cli node.proxy err:{}", e),
+                Ok(connlc) => {
+                    c.res_string(hbtp::ResCodeOk, "ok").await?;
+                    self.inner.node.proxy(&v, c.own_conn(), connlc).await;
+                    return Ok(());
+                }
+            }
+        }
+        c.res_string(hbtp::ResCodeErr, "all goto is err").await
     }
 
     pub async fn proxy_reload(&self, c: hbtp::Context) -> io::Result<()> {
@@ -263,11 +273,20 @@ impl ServerCase {
         if data.bind_port <= 0 {
             return c.res_string(hbtp::ResCodeErr, "bind port err").await;
         }
-        if data.proxy_host.is_empty() {
-            return c.res_string(hbtp::ResCodeErr, "proxy host err").await;
-        }
-        if data.proxy_port <= 0 {
-            return c.res_string(hbtp::ResCodeErr, "proxy port err").await;
+        let mut gotols = Vec::new();
+        for gov in &data.goto {
+            if gov.proxy_host.is_empty() {
+                return c.res_string(hbtp::ResCodeErr, "proxy host err").await;
+            }
+            if gov.proxy_port <= 0 {
+                return c.res_string(hbtp::ResCodeErr, "proxy port err").await;
+            }
+            gotols.push(ProxyGoto {
+                proxy_host: gov.proxy_host.clone(),
+                proxy_port: gov.proxy_port,
+                localhost: None,
+                limit: gov.limit.clone(),
+            })
         }
         let cfg = RuleCfg {
             name: match &data.name {
@@ -276,12 +295,7 @@ impl ServerCase {
             },
             bind_host: data.bind_host.clone(),
             bind_port: data.bind_port,
-            goto: ProxyGoto {
-                proxy_host: data.proxy_host.clone(),
-                proxy_port: data.proxy_port,
-                localhost: None,
-                limit: data.limit.clone(),
-            },
+            goto: gotols,
         };
         match self.inner.proxy.add_check(&cfg).await {
             0 => {}

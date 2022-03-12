@@ -36,6 +36,7 @@ fn main() {
         .arg(Arg::with_name("debug").long("debug").hidden(true))
         .arg(
             Arg::with_name("conf")
+                .multiple(true)
                 .short("c")
                 .long("conf")
                 .help("yml config file(def:/etc/hbproxy/hbproxy.yml)"),
@@ -149,14 +150,16 @@ fn main() {
                             .value_name("NAME")
                             .help("proxy name"),
                     ),
-                ).subcommand(
+                )
+                .subcommand(
                     SubCommand::with_name("stop").about("proxy stop").arg(
                         Arg::with_name("name")
                             .required(true)
                             .value_name("NAME")
                             .help("proxy name"),
                     ),
-                ).subcommand(
+                )
+                .subcommand(
                     SubCommand::with_name("rm").about("proxy remove").arg(
                         Arg::with_name("name")
                             .required(true)

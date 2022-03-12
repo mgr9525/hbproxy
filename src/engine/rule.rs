@@ -19,13 +19,16 @@ use ruisutil::ArcMut;
 
 use crate::entity::node::ProxyGoto;
 
-use super::{NodeEngine, ProxyEngine};
+use super::{
+    proxyer::{Proxyer, ProxyerCfg},
+    NodeEngine, ProxyEngine,
+};
 
 pub struct RuleCfg {
     pub name: String,
     pub bind_host: String,
     pub bind_port: i32,
-    pub goto: ProxyGoto,
+    pub goto: Vec<ProxyGoto>,
 }
 #[derive(Clone)]
 pub struct RuleProxy {
@@ -149,22 +152,33 @@ impl RuleProxy {
     }
     async fn run_cli(&self, conn: TcpStream) {
         if let Ok(addr) = conn.peer_addr() {
-            let locals = match &self.inner.cfg.goto.localhost {
-                None => "<nil>",
-                Some(v) => v.as_str(),
-            };
             log::debug!(
-                "listen {}:{} incoming from:{}->{}({}):{}",
+                "listen {}:{} incoming from:{}",
                 self.inner.cfg.bind_host.as_str(),
                 self.inner.cfg.bind_port,
                 addr,
-                self.inner.cfg.goto.proxy_host.as_str(),
-                locals,
-                self.inner.cfg.goto.proxy_port
             );
         }
-        if let Err(e) = self.inner.node.proxy(&self.inner.cfg.goto, conn).await {
-            log::error!("run_cli node.proxy err:{}", e);
+        for v in &self.inner.cfg.goto {
+            match self.inner.node.wait_connlc(v).await {
+                Err(e) => log::error!("run_cli node.proxy err:{}", e),
+                Ok(connlc) => {
+                    let locals = match &v.localhost {
+                        None => "<nil>",
+                        Some(v) => v.as_str(),
+                    };
+                    log::debug!(
+                        "start {}:{} proxy:{}({}):{}",
+                        self.inner.cfg.bind_host.as_str(),
+                        self.inner.cfg.bind_port,
+                        v.proxy_host.as_str(),
+                        locals,
+                        v.proxy_port
+                    );
+                    self.inner.node.proxy(v, conn, connlc).await;
+                    break;
+                }
+            }
         }
     }
 

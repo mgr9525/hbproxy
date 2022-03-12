@@ -1,6 +1,9 @@
 use crate::{
     app::Application,
-    entity::proxy::{ProxyListRep, RuleConfReq},
+    entity::{
+        node::ProxyGoto,
+        proxy::{ProxyListRep, RuleConfReq, RuleConfGoto},
+    },
 };
 
 pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
@@ -59,8 +62,8 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         eprintln!("bind?");
         return -1;
     };
-    let gotos = if let Some(vs) = args.value_of("goto") {
-        vs.to_string()
+    let gotos = if let Some(vs) = args.values_of("goto") {
+        vs
     } else {
         eprintln!("goto?");
         return -1;
@@ -80,21 +83,34 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         println!("bind port err");
         return -2;
     };
-    let gotols: Vec<&str> = gotos.split(":").collect();
-    if gotols.len() != 2 {
-        println!("goto len err");
-        return -2;
-    }
-    let gotoport = if let Ok(v) = gotols[1].parse::<i32>() {
-        if v <= 0 {
-            println!("goto port err:<=0");
+
+    let mut gotols = Vec::new();
+    for v in gotos {
+        let vls: Vec<&str> = v.split(":").collect();
+        if vls.len() != 2 {
+            println!("goto len err");
             return -2;
         }
-        v
-    } else {
-        println!("goto port err");
-        return -2;
-    };
+        if vls[0].is_empty() {
+            println!("goto host err");
+            return -2;
+        }
+        let vport = if let Ok(v) = vls[1].parse::<i32>() {
+            if v <= 0 {
+                println!("goto port err:<=0");
+                return -2;
+            }
+            v
+        } else {
+            println!("goto port err");
+            return -2;
+        };
+        gotols.push(RuleConfGoto {
+            proxy_host: vls[0].to_string(),
+            proxy_port: vport,
+            limit: None,
+        })
+    }
 
     let data = RuleConfReq {
         name: names,
@@ -104,13 +120,7 @@ async fn adds<'a>(args: &clap::ArgMatches<'a>) -> i32 {
             bindls[0].to_string()
         },
         bind_port: bindport,
-        proxy_host: if gotols[0].is_empty() {
-            "localhost".to_string()
-        } else {
-            gotols[0].to_string()
-        },
-        proxy_port: gotoport,
-        limit: None,
+        goto: gotols,
     };
     let mut req = Application::new_reqs(3, "ProxyAdd");
     match req.do_json(None, &data).await {
@@ -156,24 +166,19 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                     Ok(v) => v,
                 };
                 println!(
-                    "{:<30}{:<20}{:<20}{:<20}{:^10}{:<25}",
-                    "Name", "Bind", "Proxy", "Localhost", "Status", "Msg"
+                    "{:<30}{:<20}{:<40}{:^10}{:<25}",
+                    "Name", "Bind", "Proxy", "Status", "Msg"
                 );
                 for v in &data.list {
                     let msgs = match &v.msg {
                         None => "<nil>".to_string(),
                         Some(v) => v.clone(),
                     };
-                    let loccals = match &v.goto.localhost {
-                        None => "<localhost>".to_string(),
-                        Some(v) => v.clone(),
-                    };
                     println!(
-                        "{:<30}{:<20}{:<20}{:<20}{:^10}{:<25}",
+                        "{:<30}{:<20}{:<40}{:^10}{:<25}",
                         v.name.as_str(),
                         v.remote.as_str(),
-                        v.proxy.as_str(),
-                        loccals.as_str(),
+                        v.proxystr().as_str(),
                         v.status,
                         msgs.as_str()
                     );

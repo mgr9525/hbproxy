@@ -176,50 +176,29 @@ impl NodeEngine {
         }
         Ok(())
     }
-    pub async fn proxy(&self, data: &ProxyGoto, conn: TcpStream) -> io::Result<()> {
-        match self.find_node(&data.proxy_host).await {
+    pub async fn wait_connlc(&self, data: &ProxyGoto) -> io::Result<TcpStream> {
+        let v = self.find_node(&data.proxy_host).await?;
+        let connlc = match v.wait_conn(&data.localhost, data.proxy_port).await {
+            Ok(v) => v,
             Err(e) => {
-                log::error!("goto {} proxy err:{}", data.proxy_host.as_str(), e);
-                let addrs = format!("{}:{}", data.proxy_host.as_str(), data.proxy_port);
-                let connlc = match TcpStream::connect(addrs.as_str()).await {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("new_conn connect err:{}", e);
-                        return Err(e);
-                    }
-                };
-                log::debug!("rule Proxyer start on -> {}", addrs.as_str());
-                let px = Proxyer::new(
-                    self.inner.ctx.clone(),
-                    ProxyerCfg {
-                        ids: addrs,
-                        limit: data.limit.clone(),
-                    },
-                    conn,
-                    connlc,
-                );
-                px.start().await;
+                return Err(ruisutil::ioerr(
+                    format!("run_cli wait_conn err:{}", e),
+                    None,
+                ))
             }
-            Ok(v) => {
-                let connlc = match v.wait_conn(&data.localhost, data.proxy_port).await {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("run_cli wait_conn err:{}", e);
-                        return Err(e);
-                    }
-                };
-                let px = Proxyer::new(
-                    self.inner.ctx.clone(),
-                    ProxyerCfg {
-                        ids: format!("{}:{}", data.proxy_host.as_str(), data.proxy_port),
-                        limit: data.limit.clone(),
-                    },
-                    conn,
-                    connlc,
-                );
-                px.start().await;
-            }
-        }
-        Ok(())
+        };
+        Ok(connlc)
+    }
+    pub async fn proxy(&self, data: &ProxyGoto, conn: TcpStream, connlc: TcpStream) {
+        let px = Proxyer::new(
+            self.inner.ctx.clone(),
+            ProxyerCfg {
+                ids: format!("{}:{}", data.proxy_host.as_str(), data.proxy_port),
+                limit: data.limit.clone(),
+            },
+            conn,
+            connlc,
+        );
+        px.start().await;
     }
 }

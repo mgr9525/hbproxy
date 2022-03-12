@@ -60,6 +60,13 @@ impl NodeClient {
         }
     }
     pub async fn run(self) {
+        match utils::compare_version(&self.inner.cfg.remote_version, "0.3.0".into()) {
+            utils::CompareVersion::Less => {
+                log::error!("remote version is too old");
+                return;
+            }
+            _ => {}
+        };
         self.inner.ctmout.reset();
         let wg = ruisutil::WaitGroup::new();
         let c = self.clone();
@@ -196,7 +203,7 @@ impl NodeClient {
         }
     }
     async fn new_conns(&self, data: NodeConnMsg) {
-        log::debug!("start new_conns -> :{}",data.port);
+        log::debug!("start new_conns -> :{}", data.port);
         let mut req = Application::new_req(1, "NodeConns", false);
         req.add_arg("name", data.name.as_str());
         req.add_arg("xid", data.xids.as_str());
