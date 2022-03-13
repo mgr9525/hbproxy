@@ -244,7 +244,8 @@ impl NodeServer {
                 v.stat = 1;
                 v.conn = Some(cn);
             } else {
-                v.stat = -1
+                v.stat = -1;
+                // log::debug!("put_conn err stat=-1!!!!!!!!!!!!!!!!!");
             }
             return Ok(());
         }
