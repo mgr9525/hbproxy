@@ -40,6 +40,7 @@ pub struct NodeConnMsg {
 #[derive(Serialize, Deserialize)]
 pub struct ProxyGotoReq {
     pub proxys: Vec<ProxyGoto>,
+    pub origin_addr: Option<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProxyGoto {
