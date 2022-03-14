@@ -6,24 +6,19 @@ use crate::utils;
 
 static mut APPONE: OnceCell<Application> = OnceCell::new();
 
-pub const VERSION: &str = "0.3.0";
+pub const VERSION: &str = "0.3.1";
 pub struct Application {
     ctx: ruisutil::Context,
-    pub cmdargs: clap::ArgMatches<'static>,
     pub conf: Option<crate::entity::conf::ServerConf>,
     pub addrs: String,
     pub keys: Option<String>,
     pub apiaddrs: String,
     pub apikeys: Option<String>,
-    pub keyignore:bool,
 
     pub server_case: Option<crate::engine::ServerCase>,
 }
 impl Application {
-    pub fn init(
-        conf: Option<crate::entity::conf::ServerConf>,
-        args: clap::ArgMatches<'static>,
-    ) -> bool {
+    pub fn init(conf: Option<crate::entity::conf::ServerConf>) -> bool {
         let addr_confs = match &conf {
             None => None,
             Some(v) => match &v.server.host {
@@ -58,21 +53,20 @@ impl Application {
                 },
             },
         };
+
         let app = Self {
             ctx: ruisutil::Context::background(None),
             conf: conf,
 
-            addrs: if let Some(vs) = args.value_of("addr") {
-                vs.to_string()
-            } else if let Some(vs) = addr_confs {
-                vs
-            } else {
-                utils::envs("HBPROXY_ADDR", "0.0.0.0:6573")
-            },
-            keys: if let Some(vs) = args.value_of("key") {
-                // req.add_arg("node_key", vs);
-                Some(vs.to_string())
-            } else if let Some(vs) = key_confs {
+            addrs: utils::host_defport(
+                if let Some(vs) = addr_confs {
+                    vs
+                } else {
+                    utils::envs("HBPROXY_ADDR", "0.0.0.0:6573")
+                },
+                6573,
+            ),
+            keys: if let Some(vs) = key_confs {
                 // req.add_arg("node_key", vs.as_str());
                 Some(vs)
             } else if let Ok(vs) = std::env::var("HBPROXY_KEY") {
@@ -81,17 +75,15 @@ impl Application {
                 None
             },
 
-            apiaddrs: if let Some(vs) = args.value_of("apiaddr") {
-                vs.to_string()
-            } else if let Some(vs) = apiaddr_confs {
-                vs
-            } else {
-                utils::envs("HBPROXY_APIADDR", "localhost:6574")
-            },
-            apikeys: if let Some(vs) = args.value_of("apikey") {
-                // req.add_arg("node_key", vs);
-                Some(vs.to_string())
-            } else if let Some(vs) = apikey_confs {
+            apiaddrs: utils::host_defport(
+                if let Some(vs) = apiaddr_confs {
+                    vs
+                } else {
+                    utils::envs("HBPROXY_APIADDR", "localhost:6574")
+                },
+                6574,
+            ),
+            apikeys: if let Some(vs) = apikey_confs {
                 // req.add_arg("node_key", vs.as_str());
                 Some(vs)
             } else if let Ok(vs) = std::env::var("HBPROXY_APIKEY") {
@@ -99,9 +91,7 @@ impl Application {
             } else {
                 None
             },
-            keyignore:args.is_present("keyignore"),
 
-            cmdargs: args,
             server_case: None,
         };
         unsafe {

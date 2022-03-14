@@ -16,8 +16,18 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     } else {
         "unkown"
     };
+    if let Some(vs) = args.value_of("hosts") {
+        if !vs.is_empty() {
+            Application::get_mut().addrs = utils::host_defport(vs.to_string(), 6573);
+        }
+    };
+    if let Some(vs) = args.value_of("keys") {
+        if !vs.is_empty() {
+            Application::get_mut().keys = Some(vs.to_string());
+        }
+    };
 
-    match engine::NodeClient::runs(names.into()).await {
+    match engine::NodeClient::runs(names.into(),args.is_present("keyignore")).await {
         Err(e) => {
             eprintln!("client run err:{}", e);
             -3
@@ -56,9 +66,9 @@ async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
                         None => "<nil>".to_string(),
                         Some(v) => v.clone(),
                     };
-                    let tms=match v.outline_times{
-                      None=>utils::mytimes(v.online_times),
-                      Some(v)=>format!("OUT:{}",utils::mytimes(v)),
+                    let tms = match v.outline_times {
+                        None => utils::mytimes(v.online_times),
+                        Some(v) => format!("OUT:{}", utils::mytimes(v)),
                     };
                     println!(
                         "{:<30}{:<25}{:^10}{:^12}{:^10}",

@@ -2,9 +2,20 @@ use std::io;
 
 use async_std::task;
 
-use crate::{app::Application, engine::ServerCase};
+use crate::{app::Application, engine::ServerCase, utils};
 
-pub async fn runs<'a>(_: &clap::ArgMatches<'a>) -> i32 {
+pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
+    if let Some(vs) = args.value_of("hosts") {
+        if !vs.is_empty() {
+            Application::get_mut().addrs = utils::host_defport(vs.to_string(), 6573);
+        }
+    };
+    if let Some(vs) = args.value_of("keys") {
+        if !vs.is_empty() {
+            Application::get_mut().keys = Some(vs.to_string());
+        }
+    };
+
     let addrs = Application::get().apiaddrs.clone();
     let cs = ServerCase::new(Application::context());
     cs.start().await;

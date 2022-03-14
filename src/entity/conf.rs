@@ -43,13 +43,13 @@ pub struct ProxyInfoGoto {
 }
 
 impl ProxyInfoConf {
-  pub fn convs_proxy_goto(&self) -> io::Result<Vec<ProxyGoto>> {
-    let mut ls=Vec::new();
-    for v in &self.proxys{
-      ls.push(v.conv_proxy_goto()?);
+    pub fn convs_proxy_goto(&self) -> io::Result<Vec<ProxyGoto>> {
+        let mut ls = Vec::new();
+        for v in &self.proxys {
+            ls.push(v.conv_proxy_goto()?);
+        }
+        Ok(ls)
     }
-    Ok(ls)
-  }
 }
 impl ProxyInfoGoto {
     pub fn conv_proxy_goto(&self) -> io::Result<ProxyGoto> {
@@ -75,5 +75,20 @@ impl ProxyInfoGoto {
             localhost: self.localhost.clone(),
             limit: self.limit.clone(),
         })
+    }
+}
+
+impl Default for ServerConf {
+    fn default() -> Self {
+        Self {
+            server: ServerInfoConf {
+                host: None,
+                key: None,
+                log_path: None,
+                proxys_path: None,
+                key_time_check: None,
+            },
+            api_server: None,
+        }
     }
 }

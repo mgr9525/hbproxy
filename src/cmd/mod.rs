@@ -4,21 +4,21 @@ mod server;
 
 use crate::{app::Application, utils};
 
-pub async fn cmds() -> i32 {
-    if let Some(v) = Application::get().cmdargs.subcommand_matches("test") {
+pub async fn cmds(cmdargs: clap::ArgMatches<'static>) -> i32 {
+    if let Some(v) = cmdargs.subcommand_matches("test") {
         if v.is_present("debug") {
             println!("Printing debug info...");
         } else {
             println!("Printing normally...");
         }
         0
-    } else if let Some(v) = Application::get().cmdargs.subcommand_matches("server") {
+    } else if let Some(v) = cmdargs.subcommand_matches("server") {
         server::runs(v).await
-    } else if let Some(v) = Application::get().cmdargs.subcommand_matches("node") {
+    } else if let Some(v) = cmdargs.subcommand_matches("node") {
         node::runs(v).await
-    } else if let Some(v) = Application::get().cmdargs.subcommand_matches("proxy") {
+    } else if let Some(v) = cmdargs.subcommand_matches("proxy") {
         proxy::runs(v).await
-    } else if let Some(v) = Application::get().cmdargs.subcommand_matches("version") {
+    } else if let Some(v) = cmdargs.subcommand_matches("version") {
         if v.is_present("remote") {
             match utils::remote_version(Application::new_req(1, "version", false)).await {
                 Err(e) => {

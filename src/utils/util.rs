@@ -97,3 +97,11 @@ pub fn compare_version(s1: &String, s2: String) -> CompareVersion {
     }
     CompareVersion::Eq
 }
+
+pub fn host_defport(host: String, defport: i32) -> String {
+    if host.contains(":") {
+        host
+    } else {
+        format!("{}:{}", host, defport)
+    }
+}

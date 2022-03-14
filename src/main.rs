@@ -67,11 +67,6 @@ fn main() {
                 .value_name("KEY")
                 .help("server api key"),
         )
-        .arg(
-            Arg::with_name("keyignore")
-                .long("keyignore")
-                .help("ignore key err"),
-        )
         /* .arg(
             Arg::with_name("proxys-path")
                 .long("proxys-path")
@@ -100,7 +95,20 @@ fn main() {
                         .help("show remote server version."),
                 ),
         )
-        .subcommand(SubCommand::with_name("server").about("start hbproxy server."))
+        .subcommand(
+            SubCommand::with_name("server")
+                .about("start hbproxy server.")
+                .arg(
+                    Arg::with_name("hosts")
+                        .value_name("HOST")
+                        .help("start server host"),
+                )
+                .arg(
+                    Arg::with_name("keys")
+                        .value_name("KEY")
+                        .help("start server by key"),
+                ),
+        )
         .subcommand(
             SubCommand::with_name("node")
                 .about("node command")
@@ -108,10 +116,25 @@ fn main() {
                     SubCommand::with_name("join")
                         .about("start node and join to server")
                         .arg(
+                            Arg::with_name("keyignore")
+                                .long("keyignore")
+                                .help("ignore key err"),
+                        )
+                        .arg(
                             Arg::with_name("name")
                                 .required(true)
                                 .value_name("NAME")
                                 .help("node name"),
+                        )
+                        .arg(
+                            Arg::with_name("hosts")
+                                .value_name("HOST")
+                                .help("join to server host"),
+                        )
+                        .arg(
+                            Arg::with_name("keys")
+                                .value_name("KEY")
+                                .help("join to server by key"),
                         ),
                 )
                 .subcommand(SubCommand::with_name("ls").about("node list")),
@@ -206,14 +229,31 @@ fn main() {
         println!("logger err:{}", e);
     }
     log::debug!("Hello, world!");
-    if Application::init(conf, matches) {
-        let rt = async_std::task::block_on(cmd::cmds());
+    if Application::init(conf) {
+        initCmdApp(&matches);
+        let rt = async_std::task::block_on(cmd::cmds(matches));
         //println!("block on:{}", rt);
         std::process::exit(rt);
     } else {
         log::error!("application init err!");
         std::process::exit(-1);
     }
+}
+
+fn initCmdApp(args: &clap::ArgMatches<'static>) {
+    let app = Application::get_mut();
+    if let Some(vs) = args.value_of("addr") {
+      app.addrs = utils::host_defport(vs.to_string(), 6573)
+    };
+    if let Some(vs) = args.value_of("key") {
+      app.keys = Some(vs.to_string())
+    };
+    if let Some(vs) = args.value_of("apiaddr") {
+      app.apiaddrs = utils::host_defport(vs.to_string(), 6573)
+    };
+    if let Some(vs) = args.value_of("apikey") {
+      app.apikeys = Some(vs.to_string())
+    };
 }
 
 #[cfg(test)]
