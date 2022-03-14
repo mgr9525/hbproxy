@@ -230,7 +230,7 @@ fn main() {
     }
     log::debug!("Hello, world!");
     if Application::init(conf) {
-        initCmdApp(&matches);
+      init_cmd_app(&matches);
         let rt = async_std::task::block_on(cmd::cmds(matches));
         //println!("block on:{}", rt);
         std::process::exit(rt);
@@ -240,7 +240,7 @@ fn main() {
     }
 }
 
-fn initCmdApp(args: &clap::ArgMatches<'static>) {
+fn init_cmd_app(args: &clap::ArgMatches<'static>) {
     let app = Application::get_mut();
     if let Some(vs) = args.value_of("addr") {
       app.addrs = utils::host_defport(vs.to_string(), 6573)
