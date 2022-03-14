@@ -249,7 +249,7 @@ fn init_cmd_app(args: &clap::ArgMatches<'static>) {
       app.keys = Some(vs.to_string())
     };
     if let Some(vs) = args.value_of("apiaddr") {
-      app.apiaddrs = utils::host_defport(vs.to_string(), 6573)
+      app.apiaddrs = utils::host_defport(vs.to_string(), 6574)
     };
     if let Some(vs) = args.value_of("apikey") {
       app.apikeys = Some(vs.to_string())
