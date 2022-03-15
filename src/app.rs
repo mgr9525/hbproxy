@@ -6,7 +6,7 @@ use crate::utils;
 
 static mut APPONE: OnceCell<Application> = OnceCell::new();
 
-pub const VERSION: &str = "0.3.1";
+pub const VERSION: &str = "0.3.2";
 pub struct Application {
     ctx: ruisutil::Context,
     pub conf: Option<crate::entity::conf::ServerConf>,
