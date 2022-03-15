@@ -116,11 +116,6 @@ fn main() {
                     SubCommand::with_name("join")
                         .about("start node and join to server")
                         .arg(
-                            Arg::with_name("keyignore")
-                                .long("keyignore")
-                                .help("ignore key err"),
-                        )
-                        .arg(
                             Arg::with_name("name")
                                 .required(true)
                                 .value_name("NAME")

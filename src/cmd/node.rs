@@ -27,7 +27,7 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         }
     };
 
-    match engine::NodeClient::runs(names.into(),args.is_present("keyignore")).await {
+    match engine::NodeClient::runs(names.into()).await {
         Err(e) => {
             eprintln!("client run err:{}", e);
             -3

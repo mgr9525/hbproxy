@@ -273,7 +273,7 @@ impl NodeClient {
         }
     }
 
-    pub async fn runs(name: String, keyignore: bool) -> io::Result<()> {
+    pub async fn runs(name: String) -> io::Result<()> {
         let mut cfg = NodeClientCfg {
             name: name,
             token: None,
@@ -313,11 +313,6 @@ impl NodeClient {
                         return Err(e);
                     } else if e.kind() == io::ErrorKind::InvalidInput {
                         log::error!("授权失败,请检查key是否正确");
-                        task::sleep(Duration::from_secs(1)).await;
-                        if !keyignore {
-                            Application::context().stop();
-                            return Err(e);
-                        }
                         task::sleep(Duration::from_secs(3)).await;
                     } else {
                         log::error!("connect err:{}", e);
