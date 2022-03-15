@@ -271,7 +271,7 @@ impl NodeClient {
         }
     }
 
-    pub async fn runs(name: String,keyignore:bool) -> io::Result<()> {
+    pub async fn runs(name: String, keyignore: bool) -> io::Result<()> {
         let mut cfg = NodeClientCfg {
             name: name,
             token: None,
@@ -279,6 +279,7 @@ impl NodeClient {
         };
         // let mut conns = None;
         while !Application::context().done() {
+            println!("client start conn for version!!!!!");
             let vers = match utils::remote_version(Application::new_req(1, "version", false)).await
             {
                 Err(e) => {
