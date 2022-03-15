@@ -116,7 +116,9 @@ impl NodeClient {
                 Ok(v) => {
                     let c = self.clone();
                     log::debug!("run_recv msg ctrl:{}", v.control);
-                    task::spawn(async move { c.on_msg(v).await });
+                    task::spawn(async move {
+                        c.on_msg(v).await;
+                    });
                     continue;
                 }
             }

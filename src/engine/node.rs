@@ -100,19 +100,17 @@ impl NodeServer {
         self.inner.ctx.stop();
         self.close();
     }
-    pub async fn start(self) {
+    pub async fn start(&self) {
         self.inner.ctmout.reset();
         let c = self.clone();
         task::spawn(async move {
-            while !c.inner.ctx.done() {
-                c.run_send().await;
-            }
+              c.run_send().await;
+              println!("client run_send end!!");
         });
         let c = self.clone();
         task::spawn(async move {
-            while !c.inner.ctx.done() {
-                c.run_recv().await;
-            }
+              c.run_recv().await;
+              println!("client run_recv end!!");
         });
         while !self.inner.ctx.done() {
             if let Err(e) = self.run_check().await {
@@ -120,6 +118,7 @@ impl NodeServer {
             }
             task::sleep(Duration::from_millis(100)).await;
         }
+        log::debug!("node {} end!!", self.inner.cfg.name.as_str());
         self.inner
             .egn
             .remove(&self.inner.cfg.name, &self.inner.cfg.id)
@@ -143,11 +142,10 @@ impl NodeServer {
                     task::sleep(Duration::from_millis(100)).await;
                 }
                 Ok(v) => {
-                    // self.push(data);
-                    // self.inner.room.push(data);
                     let c = self.clone();
-                    // task::spawn(c.on_msg(v));
-                    task::spawn(async move { c.on_msg(v).await });
+                    task::spawn(async move {
+                        c.on_msg(v).await;
+                    });
                 }
             }
         }
@@ -254,7 +252,7 @@ impl NodeServer {
     pub async fn wait_conn(&self, host: &Option<String>, port: i32) -> io::Result<TcpStream> {
         // let ins = unsafe { self.inner.muts() };
         let mut xids;
-        let mut rterr=ruisutil::ioerr("this is outline", None);
+        let mut rterr = ruisutil::ioerr("this is outline", None);
         {
             let lkv = self.inner.waits.read().await;
             loop {
@@ -302,7 +300,7 @@ impl NodeServer {
                 });
             }
 
-            rterr=ruisutil::ioerr("timeout", None);
+            rterr = ruisutil::ioerr("timeout", None);
             let ctx = ruisutil::Context::with_timeout(
                 Some(self.inner.ctx.clone()),
                 Duration::from_secs(10),
@@ -317,16 +315,16 @@ impl NodeServer {
                         stat = v.stat;
                     }
                 }
-                if stat==1 {
+                if stat == 1 {
                     let mut lkv = self.inner.waits.write().await;
                     if let Some(mkv) = lkv.remove(&xids) {
                         let mut v = mkv.lock().await;
                         rets = std::mem::replace(&mut v.conn, None);
                         break;
                     }
-                }else if stat==-1{
-                  rterr=ruisutil::ioerr("local conn err", None);
-                  break
+                } else if stat == -1 {
+                    rterr = ruisutil::ioerr("local conn err", None);
+                    break;
                 }
                 task::sleep(Duration::from_millis(10)).await;
             }

@@ -71,13 +71,16 @@ impl NodeEngine {
         if nms.is_empty() {
             return Err(ruisutil::ioerr("name is empty!", None));
         }
+        log::info!("node register:{}", nms.as_str());
         let mut lkv = self.inner.nodes.write().await;
         if let Some(v) = lkv.get(&nms) {
             v.stop();
         }
         let node = NodeServer::new(self.inner.ctx.clone(), self.clone(), conn, cfg);
         lkv.insert(nms, node.clone());
-        task::spawn(node.start());
+        task::spawn(async move {
+            node.start().await;
+        });
         Ok(())
     }
     /* pub async fn rm_node(&self, nm: &String) {
@@ -169,7 +172,12 @@ impl NodeEngine {
         Err(ruisutil::ioerr("node not found", None))
     }
 
-    pub async fn put_conn(&self, name: &String, xids: &String, conn: Option<TcpStream>) -> io::Result<()> {
+    pub async fn put_conn(
+        &self,
+        name: &String,
+        xids: &String,
+        conn: Option<TcpStream>,
+    ) -> io::Result<()> {
         let lkv = self.inner.nodes.read().await;
         if let Some(v) = lkv.get(name) {
             v.put_conn(xids, conn).await?;
