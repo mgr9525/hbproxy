@@ -279,7 +279,7 @@ impl NodeClient {
         };
         // let mut conns = None;
         while !Application::context().done() {
-            println!("client start conn for version!!!!!");
+            log::debug!("client start conn for version!!!!!");
             let vers = match utils::remote_version(Application::new_req(1, "version", false)).await
             {
                 Err(e) => {
@@ -290,7 +290,7 @@ impl NodeClient {
                 }
                 Ok(v) => v,
             };
-            println!("remote version:{}", vers.as_str());
+            log::info!("remote version:{}", vers.as_str());
             match Self::connect(&cfg).await {
                 Ok((conn, data)) => {
                     cfg.token = Some(data.token.clone());
