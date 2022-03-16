@@ -112,6 +112,7 @@ impl NodeClient {
                         e
                     );
                     self.stop();
+                    task::sleep(Duration::from_millis(100)).await;
                 }
                 Ok(v) => {
                     let c = self.clone();
@@ -119,10 +120,8 @@ impl NodeClient {
                     task::spawn(async move {
                         c.on_msg(v).await;
                     });
-                    continue;
                 }
             }
-            task::sleep(Duration::from_millis(10)).await;
         }
     }
     async fn run_send(&self) {
@@ -273,51 +272,45 @@ impl NodeClient {
         }
     }
 
-    pub async fn runs(name: String) -> io::Result<()> {
-        let mut cfg = NodeClientCfg {
-            name: name,
-            token: None,
-            remote_version: String::new(),
+    pub async fn runs(cfg: &NodeClientCfg) -> io::Result<()> {
+        log::debug!("client start conn for version!!!!!");
+        let vers = match utils::remote_version(Application::new_req(1, "version", false)).await {
+            Err(e) => {
+                return Err(ruisutil::ioerr(
+                    format!("remote version err:{}", e),
+                    Some(io::ErrorKind::BrokenPipe),
+                ));
+            }
+            Ok(v) => v,
         };
-        // let mut conns = None;
-        while !Application::context().done() {
-            log::debug!("client start conn for version!!!!!");
-            let vers = match utils::remote_version(Application::new_req(1, "version", false)).await
-            {
-                Err(e) => {
-                    log::error!("remote version err:{}", e);
-                    task::sleep(Duration::from_secs(3)).await;
-                    continue;
-                    // return -1;
+        log::info!("remote version:{}", vers.as_str());
+        match Self::connect(&cfg).await {
+            Ok((conn, data)) => {
+                let mut cfgs = cfg.clone();
+                cfgs.token = Some(data.token.clone());
+                cfgs.remote_version = vers;
+                // conns = Some(conn);
+                let cli = Self::new(Application::context(), cfgs, conn);
+                if let Err(e) = cli.run().await {
+                    return Err(ruisutil::ioerr(format!("cli.run err:{}", e), None));
                 }
-                Ok(v) => v,
-            };
-            log::info!("remote version:{}", vers.as_str());
-            match Self::connect(&cfg).await {
-                Ok((conn, data)) => {
-                    cfg.token = Some(data.token.clone());
-                    cfg.remote_version = vers;
-                    // conns = Some(conn);
-                    let cli = Self::new(Application::context(), cfg.clone(), conn);
-                    if let Err(e) = cli.run().await {
-                        log::error!("run err:{}", e);
-                        task::sleep(Duration::from_secs(3)).await;
-                        continue;
-                    }
-                }
-                Err(e) => {
-                    if e.kind() == io::ErrorKind::AlreadyExists {
-                        log::error!("已存在相同名称的节点");
-                        task::sleep(Duration::from_secs(1)).await;
-                        Application::context().stop();
-                        return Err(e);
-                    } else if e.kind() == io::ErrorKind::InvalidInput {
-                        log::error!("授权失败,请检查key是否正确");
-                        task::sleep(Duration::from_secs(3)).await;
-                    } else {
-                        log::error!("connect err:{}", e);
-                        task::sleep(Duration::from_secs(2)).await;
-                    }
+            }
+            Err(e) => {
+                if e.kind() == io::ErrorKind::AlreadyExists {
+                    return Err(ruisutil::ioerr(
+                        "已存在相同名称的节点",
+                        Some(io::ErrorKind::Interrupted),
+                    ));
+                } else if e.kind() == io::ErrorKind::InvalidInput {
+                    return Err(ruisutil::ioerr(
+                        "授权失败,请检查key是否正确",
+                        Some(io::ErrorKind::InvalidInput),
+                    ));
+                } else {
+                    return Err(ruisutil::ioerr(
+                        format!("connect err:{}", e),
+                        Some(io::ErrorKind::InvalidData),
+                    ));
                 }
             }
         }

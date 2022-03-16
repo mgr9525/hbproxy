@@ -1,4 +1,13 @@
-use crate::{app::Application, engine, entity::node::NodeListRep, utils};
+use std::time::Duration;
+
+use async_std::task;
+
+use crate::{
+    app::Application,
+    engine::{self, NodeClientCfg},
+    entity::node::NodeListRep,
+    utils,
+};
 
 pub async fn runs<'a>(args: &clap::ArgMatches<'a>) -> i32 {
     if let Some(v) = args.subcommand_matches("join") {
@@ -27,13 +36,23 @@ async fn joins<'a>(args: &clap::ArgMatches<'a>) -> i32 {
         }
     };
 
-    match engine::NodeClient::runs(names.into()).await {
-        Err(e) => {
-            eprintln!("client run err:{}", e);
-            -3
+    let cfg = NodeClientCfg {
+        name: names.to_string(),
+        token: None,
+        remote_version: String::new(),
+    };
+    while !Application::context().done() {
+        if let Err(e) = engine::NodeClient::runs(&cfg).await {
+            log::error!("NodeClient::runs err:{}", e);
+            if e.kind() == std::io::ErrorKind::Interrupted {
+                task::sleep(Duration::from_secs(1)).await;
+                eprintln!("client will be interrupted:{}", e);
+                return -3;
+            }
+            task::sleep(Duration::from_secs(2)).await;
         }
-        Ok(_) => 0,
     }
+    0
 }
 
 async fn lss<'a>(_: &clap::ArgMatches<'a>) -> i32 {
