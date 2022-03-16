@@ -59,7 +59,7 @@ impl NodeClient {
             log::error!("stop shutdown err:{}", e);
         }
     }
-    pub async fn run(self) -> io::Result<()> {
+    pub async fn run(&self) -> io::Result<()> {
         /* match utils::compare_version(&self.inner.cfg.remote_version, "0.3.0".into()) {
             utils::CompareVersion::Less => {
                 return Err(ruisutil::ioerr("remote version is too old", None));
@@ -67,36 +67,24 @@ impl NodeClient {
             _ => {}
         }; */
         self.inner.ctmout.reset();
-        let wg = ruisutil::WaitGroup::new();
         let c = self.clone();
-        let wgs = wg.clone();
-        task::spawn(async move {
-            while !c.inner.ctx.done() {
-                c.run_check().await;
-                task::sleep(Duration::from_millis(100)).await;
-            }
-            std::mem::drop(wgs);
-            println!("client run_check end!!");
-        });
-        let c = self.clone();
-        let wgs = wg.clone();
         task::spawn(async move {
             c.run_send().await;
-            std::mem::drop(wgs);
             println!("client run_send end!!");
         });
         let c = self.clone();
-        let wgs = wg.clone();
         task::spawn(async move {
             c.run_recv().await;
-            std::mem::drop(wgs);
             println!("client run_recv end!!");
         });
         log::debug!(
             "NodeClient run waits start:{}",
             self.inner.cfg.name.as_str()
         );
-        wg.waits().await;
+        while !self.inner.ctx.done() {
+            self.run_check().await;
+            task::sleep(Duration::from_millis(100)).await;
+        }
         log::debug!("NodeClient run waits end:{}", self.inner.cfg.name.as_str());
         Ok(())
     }
