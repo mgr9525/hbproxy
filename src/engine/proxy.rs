@@ -62,7 +62,7 @@ impl ProxyEngine {
     pub async fn reload(&self) -> io::Result<()> {
         log::debug!("proxy reload start");
         let path = match &Application::get().conf {
-            None => return Err(ruisutil::ioerr("not found proxys path", None)),
+            None => "/etc/hbproxy/proxys".to_string(),
             Some(v) => match &v.server.proxys_path {
                 None => "/etc/hbproxy/proxys".to_string(),
                 Some(v) => v.clone(),
