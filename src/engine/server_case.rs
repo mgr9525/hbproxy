@@ -86,7 +86,7 @@ impl ServerCase {
                 }
                 match ruisutil::strptime(tms.as_str(), "%+") {
                     Err(_) => return Some("parse times err"),
-                    Ok(v) => match SystemTime::now().duration_since(v) {
+                    Ok(v) => match SystemTime::now().duration_since(v-Duration::from_secs(60*2)) {
                         Err(e) => {
                             if self.inner.time_check {
                                 return Some("duration times err");

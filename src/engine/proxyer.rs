@@ -85,7 +85,7 @@ impl Proxyer {
         task::spawn(async move {
             let mut count = 0;
             if let Err(e) = c.read1(&mut count).await {
-                log::warn!("Proxyer({}) read1 err:{}", c.inner.cfg.ids.as_str(), e);
+                log::debug!("Proxyer({}) read1 err:{}", c.inner.cfg.ids.as_str(), e);
             }
             // c.closer();
             unsafe { c.inner.muts().endr1 = true };
@@ -101,7 +101,7 @@ impl Proxyer {
         task::spawn(async move {
             let mut count = 0;
             if let Err(e) = c.write1(&mut count).await {
-                log::warn!("Proxyer({}) write1 err:{}", c.inner.cfg.ids.as_str(), e);
+                log::debug!("Proxyer({}) write1 err:{}", c.inner.cfg.ids.as_str(), e);
             }
             c.closer();
             std::mem::drop(wgc);
@@ -117,7 +117,7 @@ impl Proxyer {
         task::spawn(async move {
             let mut count = 0;
             if let Err(e) = c.read2(&mut count).await {
-                log::warn!("Proxyer({}) read2 err:{}", c.inner.cfg.ids.as_str(), e);
+                log::debug!("Proxyer({}) read2 err:{}", c.inner.cfg.ids.as_str(), e);
             }
             // c.closer();
             unsafe { c.inner.muts().endr2 = true };
@@ -133,7 +133,7 @@ impl Proxyer {
         task::spawn(async move {
             let mut count = 0;
             if let Err(e) = c.write2(&mut count).await {
-                log::warn!("Proxyer({}) write2 err:{}", c.inner.cfg.ids.as_str(), e);
+                log::debug!("Proxyer({}) write2 err:{}", c.inner.cfg.ids.as_str(), e);
             }
             c.closelcr();
             std::mem::drop(wgc);
